@@ -1,3 +1,8 @@
+# This makefile is intended for the miningrace tarball.
+# It is intended to build the minigrace compiler from precompiled object
+# files, and then test the compiler. The command 'make selfhost' will compile
+# the compiler again, from source, using itself.
+
 include Makefile.conf
 
 .PHONY: selfhost test buildclean fullclean install
@@ -7,17 +12,19 @@ CFILES = ast.c buildinfo.c genc.c genjs.c lexer.c parser.c util.c mgcollections.
 minigrace: $(CFILES:.c=.gcn) minigrace.gcn $(STATIC_MODULES) $(UNICODE_MODULE) gracelib.o $(OTHER_MODULES)
 	gcc -o minigrace -fPIC gracelib.o minigrace.gcn $(CFILES:.c=.gcn) $(STATIC_MODULES) $(LDFLAGS)
 
-selfhost: minigrace $(CFILES:.c=.grace) $(STUBS:%.grace=%.gct)
-	rm -f $(CFILES:.c=.gcn)
-	./minigrace --make --verbose --target c --module minigrace compiler.grace
-
 buildinfo.grace: Makefile.conf
 	awk '/prefix/ { $$4 = "\"$(PREFIX)\"" } ; /includepath/ { $$4 = "\"$(INCLUDE_PATH)\"" } ; /modulepath/ { $$4 = "\"$(MODULE_PATH)\"" } ; /objectpath/ { $$4 = "\"$(OBJECT_PATH)\"" } ; { print }' buildinfo.grace > buildinfo.grace.new
 	rm -f buildinfo.grace
 	mv buildinfo.grace.new buildinfo.grace
 
+buildclean:
+	rm -rf *.gcn minigrace unicode.gso gracelib.o bin Makefile.conf
+
 curl.gso: curl.c gracelib.h
 	gcc -std=c99 $(UNICODE_LDFLAGS) -fPIC -shared -o curl.gso curl.c -lcurl
+
+fullclean: buildclean
+	rm -f *.grace *.c *.h configure
 
 gracelib.o: gracelib.c StandardPrelude.c collectionsPrelude.c debugger.o
 	gcc -std=c99 -c -o gracelib-basic.o gracelib.c
@@ -25,41 +32,33 @@ gracelib.o: gracelib.c StandardPrelude.c collectionsPrelude.c debugger.o
 	gcc -I. -std=c99 -c -o collectionsPrelude.gcn collectionsPrelude.c
 	ld -o gracelib.o -r gracelib-basic.o StandardPrelude.gcn collectionsPrelude.gcn debugger.o
 
-install: minigrace $(GRACE_MODULES:%.grace=js/%.js) $(GRACE_DIALECTS:%.grace=%.gso) $(GRACE_DIALECTS:%.grace=js/%.js)
+gUnit.gct gUnit.gcn: gUnit.grace StandardPrelude.gct minigrace
+	./minigrace $(VERBOSITY) --make --noexec -XNoMain $<
+
+install: minigrace $(GRACE_DIALECTS:%.grace=%.gso)
 	install -d $(PREFIX)/bin $(MODULE_PATH) $(OBJECT_PATH) $(INCLUDE_PATH)
-	install -m 755 minigrace js/grace $(PREFIX)/bin/minigrace
+	install -m 755 minigrace $(PREFIX)/bin/minigrace
 	install -m 755 $(C_MODULES) $(MODULE_PATH)
 	install -m 755 gracelib.o $(OBJECT_PATH)
 	install -m 644 gracelib.h $(INCLUDE_PATH)
 	install -m 644 mgcollections.grace $(MODULE_PATH)
-	install -m 644 $(GRACE_MODULES) $(GRACE_MODULES:%.grace=js/%.js) $(GRACE_MODULES:%.grace=%.gct) $(MODULE_PATH)
-	install -m 644 $(GRACE_DIALECTS) $(GRACE_DIALECTS:%.grace=js/%.js) $(GRACE_DIALECTS:%.grace=%.gct) $(GRACE_DIALECTS:%.grace=%.gso) $(GRACE_DIALECTS:%.grace=%.gcn) $(MODULE_PATH)
-
-minigrace-environment: minigrace StandardPrelude.gct gracelib.o gUnit.gct .git/hooks/commit-msg $(PRELUDESOURCEFILES:%.grace=js/%.js) js/gUnit.js js/ast.js js/errormessages.js
-
-unicode.gso: unicode.c unicodedata.h gracelib.h
-	gcc -std=c99 $(UNICODE_LDFLAGS) -fPIC -shared -o unicode.gso unicode.c
-
-unicode.gcn: unicode.c unicodedata.h gracelib.h
-	gcc -std=c99 -g -c -o unicode.gcn unicode.c
+	install -m 644 $(GRACE_MODULES) $(GRACE_MODULES:%.grace=%.gct) $(MODULE_PATH)
+	install -m 644 $(GRACE_DIALECTS) $(GRACE_DIALECTS:%.grace=%.gct) $(GRACE_DIALECTS:%.grace=%.gso) $(GRACE_DIALECTS:%.grace=%.gcn) $(MODULE_PATH)
 
 Makefile.conf:
 	./configure
 
-mirrors.gso: mirrors.c gracelib.h
-	gcc -std=c99 $(UNICODE_LDFLAGS) -fPIC -shared -o mirrors.gso mirrors.c
+minigrace-environment: minigrace StandardPrelude.gct gracelib.o gUnit.gct
 
 mirrors.gcn: mirrors.c gracelib.h
 	gcc -std=c99 -g -c -o mirrors.gcn mirrors.c
 
-math.gso: math.c gracelib.h
-	gcc -std=c99 $(UNICODE_LDFLAGS) -fPIC -shared -o math.gso math.c
-
-repl.gso: repl.c gracelib.h
-	gcc -std=c99 $(UNICODE_LDFLAGS) -fPIC -shared -o repl.gso repl.c
-
 repl.gcn: repl.c gracelib.h
 	gcc -std=c99 -g -c -o repl.gcn repl.c
+
+selfhost: minigrace $(CFILES:.c=.grace) $(STUBS:%.grace=%.gct)
+	rm -f $(CFILES:.c=.gcn)
+	./minigrace --make --verbose --target c --module minigrace compiler.grace
 
 # The next two rules are Static Pattern Rules.  Each is like an implicit rule
 # for making %.gct from stubs/%.grace, but applies only to the targets in $(STUBS:*)
@@ -72,23 +71,14 @@ $(STUBS:%.grace=stubs/%.gct): stubs/%.gct: stubs/%.grace stubs/StandardPrelude.g
 $(STUBS:%.grace=%.gct): %.gct: stubs/%.gct
 	ln -f $< ./
 
-test.js.compile:
-	@echo "compiling tests to JavaScript"
-	@cd js/tests; ls *_test.grace | grep -v "fail" | sed 's/^t\([0-9]*\)_.*/& \1/' | while read -r fileName num; do echo "$$num \c"; ../../minigrace --target js $${fileName}; done && echo "tests compiled."
-
-test.js: minigrace-environment js/sample/dialects/requireTypes.gso util.gso ast.gso
-	npm install performance-now
-	cd js/tests; ln -sf ../sample/dialects/requireTypes.gso .
-	js/tests/harness ../../minigrace js/tests ""
-
 test: minigrace-environment
 	./tests/harness "../minigrace" tests ""
 
-buildclean:
-	rm -rf *.gcn minigrace unicode.gso gracelib.o bin Makefile.conf
+unicode.gso: unicode.c unicodedata.h gracelib.h
+	gcc -std=c99 $(UNICODE_LDFLAGS) -fPIC -shared -o unicode.gso unicode.c
 
-fullclean: buildclean
-	rm -f *.grace *.c *.h configure
+unicode.gcn: unicode.c unicodedata.h gracelib.h
+	gcc -std=c99 -g -c -o unicode.gcn unicode.c
 
 uninstall:
 	rm -f $(PREFIX)/bin/minigrace
@@ -102,3 +92,6 @@ uninstall:
     
 %.gcn: %.c
 	gcc -I. -std=c99 -c -o $@ $<
+
+
+

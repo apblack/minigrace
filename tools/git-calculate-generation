@@ -46,9 +46,9 @@ findgen() {
     then
         echo 2188
         return 0
-    elif [ "3351a750205e9eabde8cbf2d23c38256c10ee20c" = $h ]
+    elif [ "cb98313ab53772c38b0f444091c3f2a4acf35835" = $h ]
     then
-        echo 2313
+        echo 2316
         return 0
     fi
     if [ "$KNOWN" ] && [ "${known[$h]}" ]

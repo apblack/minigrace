@@ -24,7 +24,7 @@ PRELUDESOURCEFILES = collectionsPrelude.grace StandardPrelude.grace
 MGSOURCEFILES = buildinfo.grace compiler.grace errormessages.grace util.grace ast.grace lexer.grace parser.grace genjs.grace genc.grace mgcollections.grace collections.grace interactive.grace xmodule.grace identifierresolution.grace genjson.grace
 SOURCEFILES = $(MGSOURCEFILES) $(PRELUDESOURCEFILES)
 
-STABLE=50558d917022cc1c820b4617ce552e91fc7814b6
+STABLE=575c4aa1ab772fc823f1a74cc8dd07e710ae0f79
 WEBFILES = js/index.html js/global.css js/tests js/minigrace.js js/samples.js  js/tabs.js js/gracelib.js js/dom.js js/gtk.js js/debugger.js js/timer.js js/ace  js/sample js/debugger.html  js/*.png js/unicodedata.js $(GRACE_MODULES:%.grace=js/%.js) $(JSSOURCEFILES)
 
 all: minigrace-environment $(C_MODULES) $(GRACE_MODULES:.grace=.gct) $(GRACE_MODULES:.grace=.gcn) sample-dialects $(GRACE_DIALECTS)
@@ -50,14 +50,14 @@ buildinfo.grace:
 	@echo "method includepath { \"$(INCLUDE_PATH)\" }" >> buildinfo_tmp.grace
 	@echo "method modulepath { \"$(MODULE_PATH)\" }" >> buildinfo_tmp.grace
 	@echo "method objectpath { \"$(OBJECT_PATH)\" }" >> buildinfo_tmp.grace
-	@echo "method authors { ‹$$(./tools/git-authors)› }" >> buildinfo_tmp.grace
+#	@echo "method authors { ‹$$(./tools/git-authors)› }" >> buildinfo_tmp.grace
 	@if ! cmp -s buildinfo_tmp.grace buildinfo.grace ; \
 	  then mv buildinfo_tmp.grace buildinfo.grace ; echo "buildinfo rebuilt." ;\
 	  else rm buildinfo_tmp.grace ; echo "buildinfo up-to-date" ;\
 	  fi
 
 c: minigrace gracelib.c gracelib.h unicode.c unicodedata.h Makefile c/Makefile mirrors.gso mirrors.gct definitions.h curl.c repl.gso repl.gct math.gso math.gct
-	for f in gracelib.c gracelib.h unicode.c unicodedata.h $(SOURCEFILES) collectionsPrelude.grace StandardPrelude.grace $(UNICODE_MODULE) mirrors.{gso,gct} repl.{gso,gct} math.{gso,gct} definitions.h debugger.c curl.c ;\
+	for f in gracelib.c gracelib.h unicode.c unicodedata.h $(SOURCEFILES) collectionsPrelude.grace StandardPrelude.grace $(UNICODE_MODULE) $(UNICODE_MODULE:%.gso=%.gct) mirrors.{gso,gct} repl.{gso,gct} math.{gso,gct} definitions.h debugger.c curl.c ;\
     do cp $$f c ; done &&\
     cd c &&\
     ../minigrace --make $(VERBOSITY) --noexec -XNoMain -XNativePrelude collectionsPrelude.grace &&\
@@ -352,13 +352,12 @@ tarWeb: js samples
 
 tarball: minigrace
 	touch c/Makefile.conf
-	cp Makefile c/Makefile
-	make -C c initialclean
+	make -C c fullclean
 	make c
 	sed -e 's/DISTRIB=tree/DISTRIB=tarball/' < configure > c/configure
 	chmod 755 c/configure
 	VER=$$(tools/calculate-version) ;\
-      mkdir minigrace-$$VER ; cp -R c/* minigrace-$$VER ;\
+      mkdir minigrace-$$VER ; cp -R c/* gUnit.grace minigrace-$$VER ;\
       mkdir minigrace-$$VER/tests ; cp tests/*.grace tests/*.out tests/harness minigrace-$$VER/tests ;\
       mkdir minigrace-$$VER/stubs ; cp stubs/*.grace minigrace-$$VER/stubs ;\
       mkdir -p minigrace-$$VER/sample/dialects ; cp sample/dialects/*.grace sample/dialects/README sample/dialects/Makefile minigrace-$$VER/sample/dialects ;\
