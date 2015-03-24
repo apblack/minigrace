@@ -1,7 +1,4 @@
 include Makefile.conf
-# These are necessary for l1 until the $(KG) compiler learns about dependencies
-# The dependencises for l2 and . allow parallel compilation of the mg sub-modules
-include Makefile.mgDependencies
 
 .PHONY: all buildinfo.grace c clean dialects fullclean install js minigrace-environment selfhost-stats selftest samples sample-% test test.js uninstall
 ARCH:=$(shell uname -s)-$(shell uname -m)
@@ -27,6 +24,10 @@ STABLE=50558d917022cc1c820b4617ce552e91fc7814b6
 WEBFILES = js/index.html js/global.css js/tests js/minigrace.js js/samples.js  js/tabs.js js/gracelib.js js/dom.js js/gtk.js js/debugger.js js/timer.js js/ace  js/sample js/debugger.html  js/*.png js/unicodedata.js $(GRACE_MODULES:%.grace=js/%.js) $(JSSOURCEFILES)
 
 all: minigrace-environment $(C_MODULES) $(GRACE_MODULES:.grace=.gct) $(GRACE_MODULES:.grace=.gcn) sample-dialects $(GRACE_DIALECTS)
+
+# These are necessary for l1 until the $(KG) compiler learns about dependencies
+# The dependencises for l2 and . allow parallel compilation of the mg sub-modules
+include Makefile.mgDependencies
 
 # The rules that follow are in alphabetical order.  Keep them that way!
 
@@ -247,7 +248,7 @@ Makefile.conf: configure
 math.gso: math.c gracelib.h
 	gcc -g -std=c99 $(UNICODE_LDFLAGS) -o math.gso -shared -fPIC math.c
 
-$(MGSOURCEFILES:%.grace=%.gcn): %.gcn  %.grace StandardPrelude.gct l2/minigrace
+$(MGSOURCEFILES:%.grace=%.gcn): %.gcn:  %.grace StandardPrelude.gct l2/minigrace
 	l2/minigrace $(VERBOSITY) --make --noexec --vtag l2 $<
 
 $(MGSOURCEFILES:%.grace=%.gct): %.gct: %.grace StandardPrelude.gct l2/minigrace
