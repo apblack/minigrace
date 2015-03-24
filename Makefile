@@ -3,9 +3,10 @@ include Makefile.conf
 # The dependencises for l2 and . allow parallel compilation of the mg sub-modules
 include Makefile.mgDependencies
 
-.PHONY: all buildinfo.grace c clean dialects fullclean install js minigrace-environment selfhost-stats selftest samples sample-% test test.js uninstall
+.PHONY: all initialclean buildinfo.grace c clean dialects fullclean install js minigrace-environment selfhost-stats selftest samples sample-% test test.js uninstall
 ARCH:=$(shell uname -s)-$(shell uname -m)
 C_MODULES = $(UNICODE_MODULE) $(OTHER_MODULES)
+CFILES = ast.c buildinfo.c genc.c genjs.c lexer.c parser.c util.c mgcollections.c interactive.c xmodule.c identifierresolution.c genjson.c errormessages.c
 DYNAMIC_STUBS = mirrors.grace
 EXTERNAL_STUBS = unicode.grace repl.grace math.grace
 GRACE_DIALECTS = sample/dialects/requireTypes.grace sample/dialects/staticTypes.grace sample/dialects/dialect.grace rtobjectdraw.grace objectdraw.grace ast.grace util.grace buildinfo.grace
@@ -55,7 +56,7 @@ buildinfo.grace:
 	  else rm buildinfo_tmp.grace ; echo "buildinfo up-to-date" ;\
 	  fi
 
-c: minigrace gracelib.c gracelib.h unicode.c unicodedata.h Makefile c/Makefile mirrors.c definitions.h curl.c repl.c repl.gct math.c math.gct mirrors.gct
+c: minigrace gracelib.c gracelib.h unicode.c unicodedata.h Makefile c/Makefile mirrors.gso mirrors.gct definitions.h curl.c repl.gso repl.gct math.gso math.gct
 	for f in gracelib.c gracelib.h unicode.c unicodedata.h $(SOURCEFILES) collectionsPrelude.grace StandardPrelude.grace $(UNICODE_MODULE) mirrors.{gso,gct} repl.{gso,gct} math.{gso,gct} definitions.h debugger.c curl.c ;\
     do cp $$f c ; done &&\
     cd c &&\
@@ -87,7 +88,7 @@ clean:
 	( cd js ; for sf in $(SOURCEFILES) ; do rm -f $$sf ; done )
 	rm -f js/minigrace.js
 	cd c && rm -f *.gcn *.gct *.c *.h *.grace minigrace unicode.gso gracelib.o
-	rm -f minigrace.gco minigrace
+	rm -f minigrace.gco minigrace *.js
 	cd stubs && rm -f *.gct *gcn *.gso *js *.c
 	cd sample/dialects && make clean
 	cd js/sample/graphics && make clean
@@ -320,14 +321,14 @@ selftest: minigrace
 
 StandardPrelude.gcn StandardPrelude.gct: StandardPrelude.grace collectionsPrelude.gct l2/minigrace
 	l2/minigrace $(VERBOSITY) --make --noexec -XNoMain --vtag l2 $<
-    
+
 stubs/collectionsPrelude.gct: l1/collectionsPrelude.gct l1/collectionsPrelude.gcn
 	ln -f $^ stubs
 
 stubs/StandardPrelude.gct: l1/StandardPrelude.gct l1/StandardPrelude.gcn
 	ln -f $^ stubs
 
-# The next three rules are Static Pattern Rules.  Each is like an implicit rule
+# The next four rules are Static Pattern Rules.  Each is like an implicit rule
 # for making %.gct from stubs/%.grace, but applies only to the targets in $(STUBS:*)
 
 $(STUBS:%.grace=stubs/%.gct): stubs/%.gct: stubs/%.grace stubs/StandardPrelude.gct $(KG)/minigrace
@@ -351,16 +352,19 @@ tarWeb: js samples
 
 tarball: minigrace
 	touch c/Makefile.conf
-	make -C c fullclean
+	cp Makefile c/Makefile
+	make -C c initialclean
 	make c
 	sed -e 's/DISTRIB=tree/DISTRIB=tarball/' < configure > c/configure
 	chmod 755 c/configure
 	VER=$$(tools/calculate-version) ;\
       mkdir minigrace-$$VER ; cp -R c/* minigrace-$$VER ;\
       mkdir minigrace-$$VER/tests ; cp tests/*.grace tests/*.out tests/harness minigrace-$$VER/tests ;\
+      mkdir minigrace-$$VER/stubs ; cp stubs/*.grace minigrace-$$VER/stubs ;\
       mkdir -p minigrace-$$VER/sample/dialects ; cp sample/dialects/*.grace sample/dialects/README sample/dialects/Makefile minigrace-$$VER/sample/dialects ;\
       cp -R README doc minigrace-$$VER ;\
       tar cjvf ../minigrace-$$VER.tar.bz2 minigrace-$$VER ;\
+      chmod a+r ../minigrace-$$VER.tar.bz2 ;\
       rm -rf minigrace-$$VER
 
 test.js.compile:
