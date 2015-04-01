@@ -3,12 +3,20 @@ types
 binding
 6 run, 0 failed, 0 errors
 sequence
-42 run, 0 failed, 0 errors
+42 run, 0 failed, 0 errors, 1 had no assertions
+No Assertions:
+    testSequenceEmptyDo: no assertions were checked in this test
 list
-70 run, 0 failed, 0 errors
+70 run, 0 failed, 0 errors, 1 had no assertions
+No Assertions:
+    testListEmptyDo: no assertions were checked in this test
 range
 41 run, 0 failed, 0 errors
 set
-36 run, 0 failed, 0 errors
+36 run, 0 failed, 0 errors, 1 had no assertions
+No Assertions:
+    testSetEmptyDo: no assertions were checked in this test
 dictionary
-39 run, 0 failed, 0 errors
+39 run, 0 failed, 0 errors, 1 had no assertions
+No Assertions:
+    testDictionaryEmptyDo: no assertions were checked in this test

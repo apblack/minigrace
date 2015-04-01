@@ -4,7 +4,8 @@ var currentTestSuiteForDialect := done
 var currentSetupBlockForTesting := done
 var currentTestBlockForTesting := 0
 var currentTestInThisEvaluation := 0
-var currentCountOfAssertions := 0
+
+inherits gu.assertion.trait
 
 method test(name:String) by(block:Block) is public {
     if(currentTestSuiteForDialect == done) then {
@@ -15,53 +16,9 @@ method test(name:String) by(block:Block) is public {
         currentTestSuiteForDialect.add(testCaseNamed(name)setupIn(currentSetupBlockForTesting)asTestNumber(currentTestInThisEvaluation))
     } else {
         if(currentTestInThisEvaluation == currentTestBlockForTesting) then {
-            currentCountOfAssertions := 0
             block.apply()
-            if(currentCountOfAssertions == 0) then {
-                gu.assertion.trait.AssertionFailure.raise("no assertions were checked in this test")
-            }
         }
     }
-}
-
-method assert(bb:Boolean)description(str:String) is public {
-    currentCountOfAssertions := currentCountOfAssertions + 1
-    gu.assertion.trait.assert(bb)description(str)
-}
-
-method deny(bb:Boolean)description (str:String) is public {
-    currentCountOfAssertions := currentCountOfAssertions + 1
-    gu.assertion.trait.deny(bb)description(str)
-}
-
-method assert(bb:Boolean) is public {
-    currentCountOfAssertions := currentCountOfAssertions + 1
-    gu.assertion.trait.assert(bb)
-}
-
-method deny(bb:Boolean) is public {
-    currentCountOfAssertions := currentCountOfAssertions + 1
-    gu.assertion.trait.deny(bb)
-}
-
-method assert(s1:Object)shouldBe(s2:Object) is public {
-    currentCountOfAssertions := currentCountOfAssertions + 1
-    gu.assertion.trait.assert(s1)shouldBe(s2)
-}
-
-method assert(b:Block)shouldRaise(de:Exception) is public {
-    currentCountOfAssertions := currentCountOfAssertions + 1
-    gu.assertion.trait.assert(b)shouldRaise(de)
-}
-
-method assert(b:Block)shouldntRaise(ue:Exception) is public {
-    currentCountOfAssertions := currentCountOfAssertions + 1
-    gu.assertion.trait.assert(b)shouldntRaise(ue)
-}
-
-method assert(s:Object) hasType (t:Type) is public {
-    currentCountOfAssertions := currentCountOfAssertions + 1
-    gu.assertion.trait.assert(s) hasType (t)
 }
 
 method testSuite(block:Block) is public {
@@ -96,6 +53,7 @@ method testCaseNamed(name') setupIn(setupBlock) asTestNumber(number) -> gu.TestC
             } catch {e: Exception ->
                 result.testErrored(name)withMessage "{e.exception}: {e.message}"
             }
+            result.testFinished(name)
         }
 
         method debug (result) {
@@ -113,6 +71,7 @@ method testCaseNamed(name') setupIn(setupBlock) asTestNumber(number) -> gu.TestC
                 result.testErrored(name)withMessage(e.message)
                 printBackTrace(e) limitedTo(8)
             }
+            result.testFinished(name)
         }
     }
 }

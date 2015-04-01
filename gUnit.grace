@@ -29,12 +29,16 @@ type Set = {
     ...
 }
 
+var currentTestResult := false
+
 type TestResult =  {
     testStarted(name:String) -> Done
     testFailed(name:String) -> Done
     testErrored(name:String) -> Done
     summary -> String
     detailedSummary -> String
+    numberOfNones -> Number
+    nones -> Set<String>
     numberOfErrors -> Number
     errors -> Set<String>
     numberOfFailures -> Number
@@ -55,6 +59,9 @@ class assertion.trait {
     }
 
     method assert(bb: Boolean)description(str) {
+        if(currentTestResult != false) then {
+            currentTestResult.countOneAssertion()
+        }
         if (! bb) 
         then {
             AssertionFailure.raise(str)
@@ -62,22 +69,37 @@ class assertion.trait {
     }
 
     method deny(bb: Boolean)description (str) {
+        if(currentTestResult != false) then {
+            currentTestResult.countOneAssertion()
+        }
         assert (! bb) description (str)
     }
         
     method assert(bb: Boolean) {
+        if(currentTestResult != false) then {
+            currentTestResult.countOneAssertion()
+        }
         assert (bb) description "Assertion failed!"
     }
 
     method deny(bb: Boolean) {
+        if(currentTestResult != false) then {
+            currentTestResult.countOneAssertion()
+        }
         assert (! bb)
     }
 
     method assert(s1:Object)shouldBe(s2:Object) {
+        if(currentTestResult != false) then {
+            currentTestResult.countOneAssertion()
+        }
         assert (s1 == s2) description "‹{s1}› should be ‹{s2}›"
     }
     
     method assert(block0)shouldRaise(desiredException) {
+        if(currentTestResult != false) then {
+            currentTestResult.countOneAssertion()
+        }
         var completedNormally
         try {
             block0.apply
@@ -92,6 +114,9 @@ class assertion.trait {
     }
     
     method assert(block0)shouldntRaise(undesiredException) {
+        if(currentTestResult != false) then {
+            currentTestResult.countOneAssertion()
+        }
         try {
             block0.apply
         } catch { raisedException:undesiredException ->
@@ -101,6 +126,9 @@ class assertion.trait {
     }
     
     method assert(value) hasType (DesiredType) {
+        if(currentTestResult != false) then {
+            currentTestResult.countOneAssertion()
+        }
         match (value)
             case { _:DesiredType -> assert (true) }
             case { _ -> 
@@ -123,6 +151,9 @@ class assertion.trait {
     }
     
     method deny(value) hasType (UndesiredType) {
+        if(currentTestResult != false) then {
+            currentTestResult.countOneAssertion()
+        }
         match (value)
             case { _:UndesiredType -> failBecause "{value} has type {UndesiredType}" }
             case { _ -> assert (true) }
@@ -150,6 +181,7 @@ method testCaseNamed(name') -> TestCase {
             } catch {e: Exception ->
                 result.testErrored(name)withMessage "{e.exception}: {e.message}"
             }
+            result.testFinished(name)
         }
 
         method debug (result) {
@@ -169,6 +201,7 @@ method testCaseNamed(name') -> TestCase {
                 result.testErrored(name)withMessage(e.message)
                 printBackTrace(e) limitedTo(8)
             }
+            result.testFinished(name)
         }
         
         method printBackTrace(exceptionPacket) limitedTo(callLimit) {
@@ -214,14 +247,30 @@ method testCaseNamed(name') -> TestCase {
     }
 }
 
-
 factory method testResult {
+    var noneSet := set.empty
     var failSet := set.empty
     var errorSet := set.empty
     var runCount := 0
-    
+    var currentCountOfAssertions := 0
+    var previousTestResult := false
+
+    method countOneAssertion() {
+        currentCountOfAssertions := currentCountOfAssertions + 1
+    }
+
     method testStarted(name) {
         runCount := runCount + 1
+        currentCountOfAssertions := 0        
+        previousTestResult := currentTestResult
+        currentTestResult := self
+    }
+
+    method testFinished(name) {
+        if(currentCountOfAssertions == 0) then {
+            noneSet.add(testRecordFor(name)message("no assertions were checked in this test"))
+        }
+        currentTestResult := previousTestResult
     }
     
     method testFailed(name)withMessage(msg) {
@@ -234,7 +283,11 @@ factory method testResult {
     
     method summary {
         def s = if (numberOfErrors == 1) then {""} else {"s"}
-        "{runCount} run, {numberOfFailures} failed, {numberOfErrors} error{s}"
+        var result := "{runCount} run, {numberOfFailures} failed, {numberOfErrors} error{s}"
+        if(numberOfNones > 0) then {
+                result := "{result}, {numberOfNones} had no assertions"
+        }
+        return result
     }
     
     method detailedSummary {
@@ -251,7 +304,25 @@ factory method testResult {
                 output := output ++ "\n    " ++ each
             }
         }
+        if (numberOfNones > 0) then {
+            output := output ++ "\nNo Assertions:"
+            for (noneSet) do { each ->
+                output := output ++ "\n    " ++ each
+            }
+        }
         output
+    }
+    
+    method numberOfNones {
+        noneSet.size
+    }
+    
+    method nones {
+        set.withAll(noneSet)
+    }
+    
+    method NoneTestNames {
+        noneSet.map{each -> each.name}.onto(set)
     }
     
     method numberOfErrors {
