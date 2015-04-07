@@ -96,10 +96,10 @@ uninstall:
 	rm -f $(MODULE_PATH)/*.{gct,js,grace,gcn,gso}
 
 %.o: %.c gracelib.h
-	gcc -g -I. -std=c99 -c -o $@ $<
+	gcc -std=c99 -g -I. -std=c99 -c -o $@ $<
     
 %.gcn: %.c gracelib.h
-	gcc -I. -std=c99 -c -o $@ $<
+	gcc -std=c99 -I. -std=c99 -c -o $@ $<
 
 %.gso: %.c gracelib.h
 	gcc -std=c99 $(UNICODE_LDFLAGS) -fPIC -shared -o $@ $<
