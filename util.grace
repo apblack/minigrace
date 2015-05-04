@@ -226,6 +226,10 @@ method log_verbose(s) {
     }
 }
 
+method setoutfilewithext(ext) {
+    outfilev := io.open(sourceDir ++ modnamev ++ ext, "w")
+}
+
 method outprint(s) {
     outfilev.write(s)
     outfilev.write("\n")

@@ -18,7 +18,7 @@ import "mirrors" as mirrors
 util.parseargs
 
 def targets = ["lex", "parse", "grace", "processed-ast", "patterns", "symbols",
-    "imports", "c", "js"]
+    "imports", "c", "js", "both"]
 
 if (util.target == "help") then {
     print("Valid targets:")
@@ -88,10 +88,10 @@ if (util.target == "grace") then {
     util.outfile.close
     sys.exit(0)
 }
-if (util.target == "c") then {
+if ((util.target == "c") || (util.target == "both")) then {
     genc.processImports(values)
 }
-if (util.target == "js") then {
+if ((util.target == "js") || (util.target == "both")) then {
     genjs.processImports(values)
 }
 if (util.target == "json") then {
@@ -139,6 +139,14 @@ match(util.target)
     case { "js" ->
         genjs.compile(values, util.outfile, util.modname, util.runmode,
             util.buildtype, util.gracelibPath)
+    }
+    case { "both" ->
+        util.setoutfilewithext(".js")
+        genjs.compile(values, util.outfile, util.modname, util.runmode,
+            util.buildtype, util.gracelibPath)
+        util.setoutfilewithext(".c")
+        genc.compile(values, util.outfile, util.modname, util.runmode,
+            util.buildtype)
     }
     case { "json" ->
         genjson.generate(values, util.outfile)
