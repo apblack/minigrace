@@ -81,3 +81,7 @@ grace-web-editor/
 *.xcworkspace/*
 .gitignore~
 *.tar.bz2.1
+standardInput
+sample/dialects/minitestExample
+tmp.grace
+objectdraw
