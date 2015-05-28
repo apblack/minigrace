@@ -243,7 +243,6 @@ method new {
                             KeywordToken} else {IdentifierToken}).apply(tokens, mode, accum)
             }, 
             "o" :: { tokens, mode, accum ->
-                var tok := OpToken.new(accum)
                 pushToken(if (accum == "->") then {ArrowToken} 
                           elseif (accum == ":=") then {BindToken}
                           elseif (accum == ":") then {ColonToken} 
