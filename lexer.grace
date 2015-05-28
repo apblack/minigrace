@@ -202,26 +202,30 @@ method new {
             false
         }
 
-        method pushToken(tokClass) { { tokens, mode, accum -> 
+        method pushToken0(tokClass) { { tokens, mode, accum -> 
+            tokens.push(tokClass.new)
+            true
+        } }
+        method pushToken1(tokClass) { { tokens, mode, accum -> 
             tokens.push(tokClass.new(accum))
             true
         } }
         
         def modeSwitch = switch.switch(
-            "I" :: pushToken(IdentifierToken), 
-            "\"" :: pushToken(StringToken),
-            "q" :: pushToken(MultiLineStringToken),
-            "," :: pushToken(CommaToken),
-            "." :: pushToken(DotToken),
-            "\{" :: pushToken(LBraceToken),
-            "}" :: pushToken(RBraceToken),
-            "(" :: pushToken(LParenToken),
-            ")" :: pushToken(RParenToken),
-            "[" :: pushToken(LSquareToken),
-            "]" :: pushToken(RSquareToken),
-            "<" :: pushToken(LGenericToken),
-            ">" :: pushToken(RGenericToken),
-            ";" :: pushToken(SemicolonToken),
+            "I" :: pushToken1(IdentifierToken), 
+            "\"" :: pushToken1(StringToken),
+            "q" :: pushToken1(MultiLineStringToken),
+            "," :: pushToken0(CommaToken),
+            "." :: pushToken0(DotToken),
+            "\{" :: pushToken0(LBraceToken),
+            "}" :: pushToken0(RBraceToken),
+            "(" :: pushToken0(LParenToken),
+            ")" :: pushToken0(RParenToken),
+            "[" :: pushToken0(LSquareToken),
+            "]" :: pushToken0(RSquareToken),
+            "<" :: pushToken0(LGenericToken),
+            ">" :: pushToken0(RGenericToken),
+            ";" :: pushToken0(SemicolonToken),
             "d" :: { tokens, mode, accum -> indentLevel := linePosition - 1; true},
             "n" :: { tokens, mode, accum -> true},
             "x" :: { tokens, mode, accum ->
@@ -239,15 +243,15 @@ method new {
                 false
             },
              "i" :: { tokens, mode, accum->
-                pushToken(if (equalsAnyOf(accum, "object", "method", "var", "type", "import", "class",
+                pushToken1(if (equalsAnyOf(accum, "object", "method", "var", "type", "import", "class",
                                 "return", "def", "inherits", "is", "dialect", "factory")) then {
                             KeywordToken} else {IdentifierToken}).apply(tokens, mode, accum)
             }, 
             "o" :: { tokens, mode, accum ->
-                pushToken(if (accum == "->") then {ArrowToken} 
-                          elseif (accum == ":=") then {BindToken}
-                          elseif (accum == ":") then {ColonToken} 
-                          else {OpToken}).apply(tokens,mode,accum)
+                (if (accum == "->") then {pushToken0(ArrowToken)}
+                elseif {accum == ":="} then {pushToken0(BindToken)}
+                elseif {accum == ":"} then {pushToken0(ColonToken)} 
+                else {pushToken1(OpToken)}).apply(tokens,mode,accum)
             },
             "m" :: { tokens, mode, accum ->
                 var tok := 0
