@@ -1,7 +1,7 @@
-log_time_table0.txt: table0.grace cp_obj.grace ../../*.grace ./time_table0.sh
+time: table0.grace cp_obj.grace ../../*.grace
 	$(MAKE) clean
 	../../minigrace cp_obj.grace
-	./time_table0.sh >> log_time_table0.txt
+	time minigrace table0.grace 
 
 clean: 
 	-rm *.gso *.gcn *.gct *.c -f
