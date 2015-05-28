@@ -4,6 +4,7 @@ import "util" as util
 import "unicode" as unicode
 import "mgcollections" as collections
 import "errormessages" as errormessages
+import "switch" as switch
 
 method padl(s, l, w) {
     if (s.size >= l) then {
@@ -193,182 +194,140 @@ method new {
         // ":=", or "=", the corresponding special token is created.
         // For mode i, a keyword token is created for an identifier
         // whose name is a reserved keyword.
-        method modechange(tokens, mode, accum) {
-            var isDone := false
-            var tok := 0
-            if ((mode != "n") || (accum.size > 0)) then {
-                if (mode == "i") then {
-                    tok := IdentifierToken.new(accum)
-                    if ((accum == "object") || (accum == "method")
-                        || (accum == "var") || (accum == "type")
-                        || (accum == "import") || (accum == "class")
-                        || (accum == "return") || (accum == "def")
-                        || (accum == "inherits") || (accum == "is")
-                        || (accum == "dialect") || (accum == "factory")) then {
-                        tok := KeywordToken.new(accum)
-                    }
-                    tokens.push(tok)
-                    isDone := true
+        
+        def modeChangeError = { mode, accum -> errormessages.syntaxError("Lexing error: no handler for mode {mode} with accum {accum}.")atPosition(lineNumber, linePosition) }
+        
+        method equalsAnyOf(a, *bs) {
+            for (bs) do { b -> if (a == b) then { return true } }
+            false
+        }
+
+        method pushToken(tokClass) { { tokens, mode, accum -> 
+            tokens.push(tokClass.new(accum))
+            true
+        } }
+        
+        def modeSwitch = switch.switch(
+            "I" :: pushToken(IdentifierToken), 
+            "\"" :: pushToken(StringToken),
+            "q" :: pushToken(MultiLineStringToken),
+            "," :: pushToken(CommaToken),
+            "." :: pushToken(DotToken),
+            "\{" :: pushToken(LBraceToken),
+            "}" :: pushToken(RBraceToken),
+            "(" :: pushToken(LParenToken),
+            ")" :: pushToken(RParenToken),
+            "[" :: pushToken(LSquareToken),
+            "]" :: pushToken(RSquareToken),
+            "<" :: pushToken(LGenericToken),
+            ">" :: pushToken(RGenericToken),
+            ";" :: pushToken(SemicolonToken),
+            "d" :: { tokens, mode, accum -> indentLevel := linePosition - 1; true},
+            "n" :: { tokens, mode, accum -> true},
+            "x" :: { tokens, mode, accum ->
+                ProgrammingError.raise "obsolete Octet-token mode in lexer\n"
+            },
+            "c" :: { tokens, mode, accum ->
+                def cmt = accum.substringFrom(3)to(accum.size)
+                tokens.push(CommentToken.new(cmt))
+                true
+            },
+            "p" :: { tokens, mode, accum ->
+                if (accum.substringFrom(1)to(8) == "#pragma ") then {
+                    util.processExtension(accum.substringFrom(9)to(accum.size))
                 }
-                if (mode == "I") then {
-                    tok := IdentifierToken.new(accum)
-                    tokens.push(tok)
-                    isDone := true
-                } elseif (mode == "\"") then {
-                    tok := StringToken.new(accum)
-                    tokens.push(tok)
-                    isDone := true
-                } elseif (mode == "q") then {
-                    tok := MultiLineStringToken.new(accum)
-                    tokens.push(tok)
-                    isDone := true
-                } elseif (mode == "x") then {
-                    ProgrammingError.raise "obsolete Octet-token mode in lexer\n"
-                    tokens.push(tok)
-                    isDone := true
-                } elseif (mode == ",") then {
-                    tok := CommaToken.new
-                    tokens.push(tok)
-                    isDone := true
-                } elseif (mode == ".") then {
-                    tok := DotToken.new
-                    tokens.push(tok)
-                    isDone := true
-                } elseif (mode == "\{") then {
-                    tok := LBraceToken.new
-                    tokens.push(tok)
-                    isDone := true
-                } elseif (mode == "}") then {
-                    tok := RBraceToken.new
-                    tokens.push(tok)
-                    isDone := true
-                } elseif (mode == "(") then {
-                    tok := LParenToken.new
-                    tokens.push(tok)
-                    isDone := true
-                } elseif (mode == ")") then {
-                    tok := RParenToken.new
-                    tokens.push(tok)
-                    isDone := true
-                } elseif (mode == "[") then {
-                    tok := LSquareToken.new
-                    tokens.push(tok)
-                    isDone := true
-                }
-                if (mode == "]") then {
-                    tok := RSquareToken.new
-                    tokens.push(tok)
-                    isDone := true
-                } elseif (mode == "<") then {
-                    tok := LGenericToken.new
-                    tokens.push(tok)
-                    isDone := true
-                } elseif (mode == ">") then {
-                    tok := RGenericToken.new
-                    tokens.push(tok)
-                    isDone := true
-                } elseif (mode == ";") then {
-                    tok := SemicolonToken.new
-                    tokens.push(tok)
-                    isDone := true
-                } elseif (mode == "m") then {
-                    if ((tokens.size > 1).andAlso {tokens.last.kind == "dot"}) then {
-                        def dot = tokens.pop
-                        if (tokens.last.kind == "num") then {
-                            if (tokens.last.base == 10) then {
-                                tok := tokens.pop
-                                var decimal := makeNumToken(accum)
-                                if(decimal.base == 10) then {
-                                    tok := NumToken.new(tok.value ++ "." ++ accum, 10)
-                                } else {
-                                    def suggestions = []
-                                    var suggestion := errormessages.suggestion.new
-                                    suggestion.replaceRange(dot.linePos + 1, linePosition - 1)with(decimal.value)onLine(lineNumber)
-                                    suggestions.push(suggestion)
-                                    suggestion := errormessages.suggestion.new
-                                    suggestion.deleteRange(dot.linePos, linePosition - 1)onLine(lineNumber)
-                                    suggestions.push(suggestion)
-                                    errormessages.syntaxError("The fractional part of a number must be in base 10.")atRange(
-                                        lineNumber, dot.linePos + 1, linePosition - 1)withSuggestions(suggestions)
-                                }
+            },
+             "i" :: { tokens, mode, accum->
+                pushToken(if (equalsAnyOf(accum, "object", "method", "var", "type", "import", "class",
+                                "return", "def", "inherits", "is", "dialect", "factory")) then {
+                            KeywordToken} else {IdentifierToken}).apply(tokens, mode, accum)
+            }, 
+            "o" :: { tokens, mode, accum ->
+                var tok := OpToken.new(accum)
+                pushToken(if (accum == "->") then {ArrowToken} 
+                          elseif (accum == ":=") then {BindToken}
+                          elseif (accum == ":") then {ColonToken} 
+                          else {OpToken}).apply(tokens,mode,accum)
+            },
+            "m" :: { tokens, mode, accum ->
+                var tok := 0
+                if ((tokens.size > 1).andAlso {tokens.last.kind == "dot"}) then {
+                    def dot = tokens.pop
+                    if (tokens.last.kind == "num") then {
+                        if (tokens.last.base == 10) then {
+                            tok := tokens.pop
+                            var decimal := makeNumToken(accum)
+                            if(decimal.base == 10) then {
+                                tok := NumToken.new(tok.value ++ "." ++ accum, 10)
                             } else {
                                 def suggestions = []
                                 var suggestion := errormessages.suggestion.new
-                                suggestion.replaceRange(tokens.last.linePos, dot.linePos - 1)with(tokens.last.value)onLine(lineNumber)
+                                suggestion.replaceRange(dot.linePos + 1, linePosition - 1)with(decimal.value)onLine(lineNumber)
                                 suggestions.push(suggestion)
                                 suggestion := errormessages.suggestion.new
-                                suggestion.deleteChar(dot.linePos)onLine(lineNumber)
+                                suggestion.deleteRange(dot.linePos, linePosition - 1)onLine(lineNumber)
                                 suggestions.push(suggestion)
-                                errormessages.syntaxError("A number in base {tokens.last.base} cannot have a fractional part.")atRange(
-                                    lineNumber, dot.linePos, linePosition - 1)withSuggestions(suggestions)
+                                errormessages.syntaxError("The fractional part of a number must be in base 10.")atRange(
+                                    lineNumber, dot.linePos + 1, linePosition - 1)withSuggestions(suggestions)
                             }
                         } else {
-                            if(tokens.last.kind == "string") then {
-                                def suggestion = errormessages.suggestion.new
-                                suggestion.replaceChar(dot.linePos)with("++")onLine(dot.line)
-                                errormessages.syntaxError("A number may follow a '.' only if there is a number before the '.'. "
-                                    ++ "To join a number to a string, use '++'.")atRange(
-                                    dot.line, dot.linePos, dot.linePos)withSuggestion(suggestion)
-                            } elseif((tokens.last.kind == "op") || (tokens.last.kind == "bind")) then {
-                                def suggestion = errormessages.suggestion.new
-                                suggestion.insert("0")atPosition(dot.linePos)onLine(dot.line)
-                                errormessages.syntaxError("A number must have a digit before the decimal point.")atPosition(
-                                    dot.line, dot.linePos)withSuggestion(suggestion)
-                            } elseif(tokens.last.kind == "identifier") then {
-                                def suggestions = []
-                                if(tokens.last.value == "o") then {
-                                    def suggestion = errormessages.suggestion.new
-                                    suggestion.replaceChar(tokens.last.linePos)with("0")onLine(tokens.last.line)
-                                    suggestions.push(suggestion)
-                                }
-                                def suggestion = errormessages.suggestion.new
-                                suggestion.replaceRange(dot.linePos, linePosition - 1)with("({accum})")onLine(tokens.last.line)
-                                suggestions.push(suggestion)
-                                errormessages.syntaxError("A number may follow a '.' only if there is a number before the '.'.")atRange(
-                                    dot.line, dot.linePos, dot.linePos)withSuggestions(suggestions)
-                            } else {
-                                errormessages.syntaxError("A number may follow a '.' only if there is a number before the '.'.")atRange(
-                                    dot.line, dot.linePos, dot.linePos)
-                            }
+                            def suggestions = []
+                            var suggestion := errormessages.suggestion.new
+                            suggestion.replaceRange(tokens.last.linePos, dot.linePos - 1)with(tokens.last.value)onLine(lineNumber)
+                            suggestions.push(suggestion)
+                            suggestion := errormessages.suggestion.new
+                            suggestion.deleteChar(dot.linePos)onLine(lineNumber)
+                            suggestions.push(suggestion)
+                            errormessages.syntaxError("A number in base {tokens.last.base} cannot have a fractional part.")atRange(
+                                lineNumber, dot.linePos, linePosition - 1)withSuggestions(suggestions)
                         }
                     } else {
-                        tok := makeNumToken(accum)
+                        if(tokens.last.kind == "string") then {
+                            def suggestion = errormessages.suggestion.new
+                            suggestion.replaceChar(dot.linePos)with("++")onLine(dot.line)
+                            errormessages.syntaxError("A number may follow a '.' only if there is a number before the '.'. "
+                                ++ "To join a number to a string, use '++'.")atRange(
+                                dot.line, dot.linePos, dot.linePos)withSuggestion(suggestion)
+                        } elseif((tokens.last.kind == "op") || (tokens.last.kind == "bind")) then {
+                            def suggestion = errormessages.suggestion.new
+                            suggestion.insert("0")atPosition(dot.linePos)onLine(dot.line)
+                            errormessages.syntaxError("A number must have a digit before the decimal point.")atPosition(
+                                dot.line, dot.linePos)withSuggestion(suggestion)
+                        } elseif(tokens.last.kind == "identifier") then {
+                            def suggestions = []
+                            if(tokens.last.value == "o") then {
+                                def suggestion = errormessages.suggestion.new
+                                suggestion.replaceChar(tokens.last.linePos)with("0")onLine(tokens.last.line)
+                                suggestions.push(suggestion)
+                            }
+                            def suggestion = errormessages.suggestion.new
+                            suggestion.replaceRange(dot.linePos, linePosition - 1)with("({accum})")onLine(tokens.last.line)
+                            suggestions.push(suggestion)
+                            errormessages.syntaxError("A number may follow a '.' only if there is a number before the '.'.")atRange(
+                                dot.line, dot.linePos, dot.linePos)withSuggestions(suggestions)
+                        } else {
+                            errormessages.syntaxError("A number may follow a '.' only if there is a number before the '.'.")atRange(
+                                dot.line, dot.linePos, dot.linePos)
+                        }
                     }
-                    tokens.push(tok)
-                    isDone := true
-                } elseif (mode == "o") then {
-                    tok := OpToken.new(accum)
-                    if (accum == "->") then {
-                        tok := ArrowToken.new
-                    } elseif (accum == ":=") then {
-                        tok := BindToken.new
-                    } elseif (accum == ":") then {
-                        tok := ColonToken.new
-                    }
-                    tokens.push(tok)
-                    isDone := true
-                } elseif (mode == "d") then {
-                    indentLevel := linePosition - 1
-                    isDone := true
-                } elseif (mode == "n") then {
-                    isDone := true
-                } elseif (mode == "c") then {
-                    def cmt = accum.substringFrom(3)to(accum.size)
-                    tokens.push(CommentToken.new(cmt))
-                    isDone := true
-                } elseif (mode == "p") then {
-                    if (accum.substringFrom(1)to(8) == "#pragma ") then {
-                        util.processExtension(
-                            accum.substringFrom(9)to(accum.size))
-                    }
-                } elseif (isDone) then {
-                    //print(mode, accum, tokens)
                 } else {
-                    errormessages.syntaxError("Lexing error: no handler for mode {mode} with accum {accum}.")atPosition(lineNumber, linePosition)
+                    tok := makeNumToken(accum)
                 }
+                tokens.push(tok)
+                true
+            }) default ( { tokens, mode, accum -> modeChangeError.apply(mode, accum) } )
+
+        method modechange(tokens, mode, accum) {
+            var isDone := false
+            if ((mode != "n") || (accum.size > 0)) then {
+                isDone := modeSwitch.case(mode).apply(tokens, mode, accum)
+            }
+            if (!isDone) then {
+                modeChangeError.apply(mode, accum)
             }
             startPosition := linePosition
         }
+
 
         method fromBase(str, base) {
             var val := 0
