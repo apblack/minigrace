@@ -236,6 +236,7 @@ method new {
                 if (accum.substringFrom(1)to(8) == "#pragma ") then {
                     util.processExtension(accum.substringFrom(9)to(accum.size))
                 }
+                false
             },
              "i" :: { tokens, mode, accum->
                 pushToken(if (equalsAnyOf(accum, "object", "method", "var", "type", "import", "class",
