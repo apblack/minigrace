@@ -66,6 +66,7 @@ class BasicPattern.new {
     }
 }
 class MatchAndDestructuringPattern.new(pat, items') {
+    print "Whoa, in MatchAndDestructuringPattern.new in the StandardPrelude!"
     inherits BasicPattern.new
     def pattern = pat
     def items = items'
@@ -95,6 +96,11 @@ class MatchAndDestructuringPattern.new(pat, items') {
             FailedMatch.new(o)
         }
     }
+}
+
+class SwitchPattern.new(pat, items) {
+    inherits BasicPattern.new
+ 
 }
 
 class VariablePattern.new(nm) {
