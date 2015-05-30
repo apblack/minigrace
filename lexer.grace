@@ -16,7 +16,6 @@ method padl(s, l, w) {
     return s'
 }
 
-
 method new {
     var lineNumber := 1
     var linePosition := 0
@@ -411,7 +410,6 @@ method new {
             }
             val
         }
-                
         method hexdecchar(c) {
         // Return the numeric value of the single hexadecimal digit c.
             def AOrd = "A".ord
@@ -1115,4 +1113,3 @@ method new {
         }
     }
 }
-
