@@ -4,7 +4,6 @@ import "util" as util
 import "unicode" as unicode
 import "mgcollections" as collections
 import "errormessages" as errormessages
-import "switch" as switch
 
 method padl(s, l, w) {
     if (s.size >= l) then {
