@@ -407,6 +407,7 @@ class catchCaseNode.new(block, cases', finally') {
 }
 class matchCaseNode.new(matchee', cases', elsecase') {
     inherits baseNode.new
+    print "ast MatchCaseNode  !!"
     def kind is public = "matchcase"
     var value is public := matchee'
     var cases is public := cases'
@@ -464,6 +465,68 @@ class matchCaseNode.new(matchee', cases', elsecase') {
         matchCaseNode.new(nullNode, emptySeq, false).shallowCopyFieldsFrom(self) parent(p)
     }
 }
+
+class switchCaseNode.new(switchee', cases', elsecase') {
+    inherits baseNode.new
+    print "ast switchCaseNode  !!"
+    def kind is public = "switchcase"
+    var value is public := switchee'
+    var cases is public := cases'
+    var elsecase is public := elsecase'
+    method matchee { value }
+    method accept(visitor : ASTVisitor) from(pNode) {
+        if (visitor.visitMatchCase(self) up(pNode)) then {
+            self.value.accept(visitor) from(self)
+            for (self.cases) do { mx ->
+                mx.accept(visitor) from(self)
+            }
+            if (self.elsecase != false) then {
+                self.elsecase.accept(visitor) from(self)
+            }
+        }
+    }
+    method map(blk) parent(p) {
+        var n := shallowCopyWithParent(p)
+        n.value := value.map(blk) parent(n)
+        n.cases := listMap(cases, blk) parent(n)
+        n.elsecase := maybeMap(elsecase, blk) parent(n)
+        n := blk.apply(n)
+        n
+    }
+    method pretty(depth) {
+        var spc := ""
+        for (0..depth) do { i ->
+            spc := spc ++ "  "
+        }
+        var s := super.pretty(depth) ++ "\n"
+        s := s ++ spc ++ matchee.pretty(depth + 2)
+        for (self.cases) do { mx ->
+            s := s ++ "\n{spc}Case:\n{spc}  {mx.pretty(depth+2)}"
+        }
+        if (false != self.elsecase) then {
+            s := s ++ "\n{spc}Else:\n{spc}  {self.elsecase.pretty(depth+2)}"
+        }
+        s   
+    }   
+    method toGrace(depth : Number) -> String {
+        var spc := ""
+        for (0..(depth - 1)) do { i ->    
+            spc := spc ++ "    "
+        }
+        var s := "switch(" ++ self.value.toGrace(0) ++ ")" 
+        for (self.cases) do { case ->
+            s := s ++ "\n" ++ spc ++ "    " ++ "case " ++ case.toGrace(depth + 2)
+        }
+        if (self.elsecase != false) then {
+            s := s ++ "\n" ++ spc ++ "    " ++ "else " ++ self.elsecase.toGrace(depth + 2)
+        }
+        s
+    }
+    method shallowCopyWithParent(p) {
+        switchCaseNode.new(nullNode, emptySeq, false).shallowCopyFieldsFrom(self) parent(p)
+    }
+}
+
 class methodTypeNode.new(name', signature', rtype') {
     // Represents the signature of a method in a type literal
     // [signature]

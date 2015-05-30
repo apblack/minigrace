@@ -1393,6 +1393,7 @@ method catchcase { // TODO: This construct is DEPRECATED. Remove it.
     minIndentLevel := localmin
 }
 method matchcase {
+    print("\n\nParser: matchcase\n\n");
     if (!(accept("identifier") && (sym.value == "match"))) then {
         return 0
     }
@@ -1543,6 +1544,111 @@ method matchcase {
     values.push(ast.matchCaseNode.new(matchee, cases, elsecase))
     minIndentLevel := localmin
 }
+
+// Switch-Case method for parser
+method switchcase {
+    if (!(accept("identifier") && (sym.value == "switch"))) then {
+        return 0
+    }
+    def localmin = minIndentLevel
+    def matchTok = sym
+    next
+    if(sym.kind != "lparen") then {
+        def suggestion = errormessages.suggestion.new
+        // Look ahead for a rparen or case.
+        def nextTok = findNextToken({ t -> ((t.kind == "rparen") && (t.line == matchTok.line))
+            || ((t.kind == "identifier") && (t.value == "case")) })
+        if(nextTok == false) then {
+            suggestion.insert("(«expression»)")afterToken(matchTok)
+        } elseif(nextTok.kind == "rparen") then {
+            if(nextTok == sym) then {
+                suggestion.insert("(«expression»")beforeToken(sym)
+            } else {
+                suggestion.insert("(")beforeToken(sym)
+            }
+        } elseif(nextTok.kind == "identifier") then {
+            suggestion.insert("(")beforeToken(sym)
+            suggestion.insert(")")afterToken(nextTok.prev)andTrailingSpace(true)
+        }
+        errormessages.syntaxError("A switch statement must have an expression in parentheses after the 'match'.")atPosition(
+            matchTok.line, matchTok.linePos + matchTok.size)withSuggestion(suggestion)
+    }
+    next
+    if(didConsume({expression(blocksOK)}).not) then {
+        def suggestion = errormessages.suggestion.new
+        def nextTok = findNextValidToken("rparen")
+        if(nextTok == sym) then {
+            suggestion.insert("«expression»")afterToken(lastToken)
+        } else {
+            suggestion.replaceTokenRange(sym, nextTok.prev)leading(true)trailing(false)with("«expression»")
+        }
+        errormessages.syntaxError("A switch statement must have an expression in parentheses after the 'match'.")atPosition(
+            sym.line, sym.linePos)withSuggestion(suggestion)
+    }
+    def matchee = values.pop
+    if(sym.kind != "rparen") then {
+        checkBadOperators
+        def suggestion = errormessages.suggestion.new
+        suggestion.insert(")")afterToken(lastToken)
+        errormessages.syntaxError("An expression beginning with a '(' must end with a ')'.")atPosition(
+            lastToken.line, lastToken.linePos + lastToken.size)withSuggestion(suggestion)
+    }
+    next
+    def cases = []
+    var elsecase := false
+    while {accept("identifier") && (sym.value == "case")} do {
+        next
+        if (accept("lbrace")) then {
+            block
+        } elseif (accept("lparen")) then {
+            next
+            if(didConsume({expression(blocksOK)}).not) then {
+                def suggestion = errormessages.suggestion.new
+                def nextTok = findNextValidToken("rparen")
+                if(nextTok == sym) then {
+                    suggestion.insert("«expression»")afterToken(lastToken)
+                } else {
+                    suggestion.replaceTokenRange(sym, nextTok.prev)leading(true)trailing(false)with("«expression»")
+                }
+                errormessages.syntaxError("A switch statement must have either a matching block or an expression in parentheses after the 'case'.")atPosition(
+                    sym.line, sym.linePos)withSuggestion(suggestion)
+            }
+            if(sym.kind != "rparen") then {
+                checkBadOperators
+                def suggestion = errormessages.suggestion.new
+                suggestion.insert(")")afterToken(lastToken)
+                errormessages.syntaxError("An expression beginning with a '(' must end with a ')'.")atPosition(
+                    lastToken.line, lastToken.linePos + lastToken.size)withSuggestion(suggestion)
+            }
+            next
+        } else {
+            def suggestions = []
+            def nextTok = findNextTokenIndentedAt(lastToken)
+            var suggestion := errormessages.suggestion.new
+            if(nextTok == false) then {
+                suggestion.insert(" }")afterToken(tokens.last)
+                suggestion.insert(" \{")afterToken(lastToken)
+                suggestions.push(suggestion)
+            } elseif(nextTok == sym) then {
+                suggestion.insert(" («expression»)")afterToken(lastToken)
+                suggestions.push(suggestion)
+                suggestion := errormessages.suggestion.new
+                suggestion.insert(" \{ «match expression» }")afterToken(lastToken)
+                suggestions.push(suggestion)
+            } else {
+                suggestion.insert(" }")afterToken(nextTok.prev)
+                suggestion.insert(" \{")afterToken(lastToken)
+                suggestions.push(suggestion)
+            }
+            errormessages.syntaxError("A switch statement must have either a matching block or an expression in parentheses after the 'case'.")atPosition(
+                sym.line, sym.linePos)withSuggestions(suggestions)
+        }
+        cases.push(values.pop)
+    }
+    values.push(ast.matchCaseNode.new(matchee, cases, elsecase))
+    minIndentLevel := localmin
+}
+
 // Accept a term. Terms consist only of single syntactic units and
 // do not contain any operators or parentheses, unlike expression.
 method term {
