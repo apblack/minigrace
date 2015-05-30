@@ -70,12 +70,10 @@ method new {
                 (other.line == line) && (other.linePos == linePos)
             }
         }
-
-
     }
 
     class Token.multiarg_new(kin, val, siz) {
-        inherits Token.multiarg_new()
+        inherits Token.new()
         def kind is public = kin
         def value is public = val
         def size is public = s
