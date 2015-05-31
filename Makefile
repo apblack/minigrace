@@ -29,7 +29,7 @@ JSSOURCEFILES = $(filter-out js/repl.js,$(filter-out js/interactive.js,$(SOURCEF
 KG=known-good/$(ARCH)/$(STABLE)
 OBJECTDRAW_BITS = objectdraw.grace rtobjectdraw.grace animation.grace
 PRELUDESOURCEFILES = collectionsPrelude.grace StandardPrelude.grace
-REALSOURCEFILES = compiler.grace errormessages.grace util.grace ast.grace lexer.grace parser.grace genjs.grace genc.grace mgcollections.grace interactive.grace xmodule.grace identifierresolution.grace genjson.grace
+REALSOURCEFILES = compiler.grace errormessages.grace util.grace ast.grace lexer.grace parser.grace genjs.grace genc.grace mgcollections.grace interactive.grace xmodule.grace identifierresolution.grace genjson.grace 
 SOURCEFILES = $(MGSOURCEFILES) $(PRELUDESOURCEFILES)
 STABLE=6a7a5c84fb667753eeceb7f0a515ad8f8f730657
 STUB_GCTS = $(STUBS:%.grace=stubs/%.gct)

@@ -23,11 +23,14 @@ method new {
     var indentLevel := 0
     var startLine := 1
     var stringStart
-    
-    class Token.new() {
+ 
+    class Token.new(kin, val, siz) {
         def line is public = lineNumber
         def indent is public = indentLevel
         def linePos is public = startPosition
+        def kind is public = kin
+        def value is public = val
+        def size is public = siz
 
         var next is public := false
         var prev is public := false
@@ -41,48 +44,41 @@ method new {
         }
     }
 
-    class Token.multiarg_new(kin, val, siz) {
-        inherits Token.new()
-        def kind is public = kin
-        def value is public = val
-        def size is public = s
-    }
-
-    class IdentifierToken.new(s) { inherits Token.multiarg_new("identifier", s, s.size) }
-    class StringToken.new(s) { inherits Token.multiarg_new("string", s, linePosition - stringStart + 1) }
+    class IdentifierToken.new(s) { inherits Token.new("identifier", s, s.size) }
+    class StringToken.new(s) { inherits Token.new("string", s, linePosition - stringStart + 1) }
     class MultiLineStringToken.new(s) {
-        inherits Token.multiarg_new("string", s, s.size + 2)
+        inherits Token.new("string", s, s.size + 2)
         def line' = startLine
         def linePos' = stringStart
         method line is override { line' }
         method linePos is override { linePos' }
     }
-    class CommentToken.new(s) { inherits Token.multiarg_new("comment", s, s.size + 2) }
-    class LBraceToken.new { inherits Token.multiarg_new("lbrace", "\{", 1) }
-    class RBraceToken.new { inherits Token.multiarg_new("rbrace", "}", 1) }
-    class LParenToken.new { inherits Token.multiarg_new("lparen", "(", 1) }
-    class RParenToken.new { inherits Token.multiarg_new("rparen", ")", 1) }
-    class LSquareToken.new {inherits Token.multiarg_new("lsquare", "[", 1) }
+    class CommentToken.new(s) { inherits Token.new("comment", s, s.size + 2) }
+    class LBraceToken.new { inherits Token.new("lbrace", "\{", 1) }
+    class RBraceToken.new { inherits Token.new("rbrace", "}", 1) }
+    class LParenToken.new { inherits Token.new("lparen", "(", 1) }
+    class RParenToken.new { inherits Token.new("rparen", ")", 1) }
+    class LSquareToken.new {inherits Token.new("lsquare", "[", 1) }
     class RSquareToken.new {
-        inherits Token.multiarg_new("rsquare", "]", 1)
+        inherits Token.new("rsquare", "]", 1)
         def kind is public = "rsquare"
         def value is public = "]"
         def size is public = 1
     }
-    class CommaToken.new { inherits Token.multiarg_new("comma", ",", 1) }
-    class ColonToken.new { inherits Token.multiarg_new("colon", ":", 1) }
-    class DotToken.new { inherits Token.multiarg_new("dot", ".", 1) }
+    class CommaToken.new { inherits Token.new("comma", ",", 1) }
+    class ColonToken.new { inherits Token.new("colon", ":", 1) }
+    class DotToken.new { inherits Token.new("dot", ".", 1) }
     class NumToken.new(v, b) {
-        inherits Token.multiarg_new("num", v, linePosition - startPosition)
+        inherits Token.new("num", v, linePosition - startPosition)
         def base is public = b
     }
-    class KeywordToken.new(v) { inherits Token.multiarg_new("keyword", v, v.size) }
-    class OpToken.new(v) { inherits Token.multiarg_new("op", v, v.size) }
-    class ArrowToken.new { inherits Token.multiarg_new("arrow", "->", 2) }
-    class BindToken.new { inherits Token.multiarg_new("bind", ":=", 2) }
-    class SemicolonToken.new { inherits Token.multiarg_new("semicolon", ";", 1) }
-    class LGenericToken.new { inherits Token.multiarg_new("lgeneric", "<", 1) }
-    class RGenericToken.new { inherits Token.multiarg_new("rgeneric", ">", 1) }
+    class KeywordToken.new(v) { inherits Token.new("keyword", v, v.size) }
+    class OpToken.new(v) { inherits Token.new("op", v, v.size) }
+    class ArrowToken.new { inherits Token.new("arrow", "->", 2) }
+    class BindToken.new { inherits Token.new("bind", ":=", 2) }
+    class SemicolonToken.new { inherits Token.new("semicolon", ";", 1) }
+    class LGenericToken.new { inherits Token.new("lgeneric", "<", 1) }
+    class RGenericToken.new { inherits Token.new("rgeneric", ">", 1) }
 
 
     object {
