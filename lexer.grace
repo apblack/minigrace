@@ -16,6 +16,7 @@ method padl(s, l, w) {
     return s'
 }
 
+
 method new {
     var lineNumber := 1
     var linePosition := 0

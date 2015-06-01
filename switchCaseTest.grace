@@ -76,6 +76,7 @@ def switchTest = object {
                 case { i : Number -> y := "true" }
                 case { _ -> y := "false" }
             assert(x) shouldBe("true")
+            assert(y) shouldBe("true")
         }
     }
 }
