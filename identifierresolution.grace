@@ -694,6 +694,11 @@ method reportUndeclaredIdentifier(node) {
             suggestion.append " do \{ aVarName -> \}" onLine(node.line)
             suggestions.push(suggestion)
         }
+        if (node.value == "switch") then {
+            suggestion := errormessages.suggestion.new
+            suggestion.append " case() { ... }"
+            suggestions.push(suggestion)
+        }
         errormessages.syntaxError "Unknown method '{nm}'. This may be a spelling mistake or an attempt to access a method in another scope.{extra}"
             atRange(node.line, node.linePos, node.linePos +
                 highlightLength - 1)
@@ -750,6 +755,7 @@ method resolveIdentifiers(topNode) {
     // This creates a new AST
     topNode.map { node ->
         if ( node.isAppliedOccurenceOfIdentifier ) then {
+            //print "resolveIdentifiers"
             rewriteIdentifier(node)
             // TODO — opNodes don't contain identifiers!
         } elseif { node.isInherits } then {
@@ -1127,6 +1133,7 @@ method transformInherits(inhNode) {
     if (inhNode.inheritsFromCall) then {
         var superCall := inhNode.value
         if (superCall.isAppliedOccurenceOfIdentifier) then {
+            print "transforming Inherits"
             superCall := rewriteIdentifier(superCall)
         }
         // TODO: try removing the above — it may not be necessary

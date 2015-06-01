@@ -1633,7 +1633,7 @@ method switchcase {
                 suggestion.insert(" («expression»)")afterToken(lastToken)
                 suggestions.push(suggestion)
                 suggestion := errormessages.suggestion.new
-                suggestion.insert(" \{ «match expression» }")afterToken(lastToken)
+                suggestion.insert(" \{ «switch expression» }")afterToken(lastToken)
                 suggestions.push(suggestion)
             } else {
                 suggestion.insert(" }")afterToken(nextTok.prev)
@@ -1661,6 +1661,8 @@ method term {
         pushoctets
     } elseif(accept("identifier") && (sym.value == "match")) then {
         matchcase
+    } elseif(accept("identifier") && (sym.value == "switch")) then {
+        switchcase
     } elseif(accept("identifier") && (sym.value == "catch")) then {
         catchcase
     } elseif(accept("identifier") && (sym.value == "try")) then {
