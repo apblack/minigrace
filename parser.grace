@@ -1393,7 +1393,7 @@ method catchcase { // TODO: This construct is DEPRECATED. Remove it.
     minIndentLevel := localmin
 }
 method matchcase {
-    print("\n\nParser: matchcase\n\n");
+    //print("\n\nParser: matchcase\n\n");
     if (!(accept("identifier") && (sym.value == "match"))) then {
         return 0
     }

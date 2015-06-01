@@ -407,7 +407,7 @@ class catchCaseNode.new(block, cases', finally') {
 }
 class matchCaseNode.new(matchee', cases', elsecase') {
     inherits baseNode.new
-    print "ast MatchCaseNode  !!"
+    //print "ast MatchCaseNode  !!"
     def kind is public = "matchcase"
     var value is public := matchee'
     var cases is public := cases'
@@ -468,7 +468,7 @@ class matchCaseNode.new(matchee', cases', elsecase') {
 
 class switchCaseNode.new(switchee', cases', elsecase') {
     inherits baseNode.new
-    print "ast switchCaseNode  !!"
+    //print "ast switchCaseNode  !!"
     def kind is public = "switchcase"
     var value is public := switchee'
     var cases is public := cases'
