@@ -1133,7 +1133,7 @@ method transformInherits(inhNode) {
     if (inhNode.inheritsFromCall) then {
         var superCall := inhNode.value
         if (superCall.isAppliedOccurenceOfIdentifier) then {
-            print "transforming Inherits"
+            //print "transforming Inherits"
             superCall := rewriteIdentifier(superCall)
         }
         // TODO: try removing the above — it may not be necessary
