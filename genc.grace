@@ -1332,6 +1332,43 @@ method compilematchcase(o) {
     out("  gc_frame_end(frame{myc});")
     o.register := "matchres" ++ myc
 }
+
+method compileswitchcase(o) {
+    def myc = auto_count
+    auto_count := auto_count + 1
+    def cases = o.cases
+    if (o.cases.size > paramsUsed) then {
+        paramsUsed := o.cases.size
+    }
+    def matchee = compilenode(o.value)
+    out("  int frame{myc} = gc_frame_new();")
+    out("  gc_frame_newslot({matchee});")
+    var i := 0
+    def params = []
+    for (cases) do {c->
+        def e = compilenode(c)
+        out("  gc_frame_newslot({e});")
+        params.push([i, e])
+        i := i + 1
+    }
+    var elsecase := "NULL"
+    if (false != o.elsecase) then {
+        elsecase := compilenode(o.elsecase)
+        out("  gc_frame_newslot({elsecase});")
+    }
+    for (params) do {ie->
+        def idx = ie[1]
+        def e = ie[2]
+        out("  params[{idx}] = {e};")
+    }
+    out("  Object matchres{myc} = switchCase({matchee}, params, {cases.size},"
+        ++ "{elsecase});")
+    out("  gc_frame_end(frame{myc});")
+    o.register := "matchres" ++ myc
+
+
+}
+
 method compileop(o) {
     def myc = auto_count
     auto_count := auto_count + 1
@@ -1747,6 +1784,8 @@ method compilenode(o) {
         compilematchcase(o)
     } elseif { oKind == "catchcase" } then {
         compilecatchcase(o)
+    } elseif { oKind == "switchcase" } then {
+        compileswitchcase(o)
     } elseif { oKind == "class" } then {
         compileclass(o, true)
     } elseif { oKind == "object" } then {

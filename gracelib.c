@@ -3810,6 +3810,12 @@ Object alloc_MatchFailed() {
     }
     return MatchFailed;
 }
+Object switchCase(Object switchee, Object *cases, int ncases, Object elsecase)
+{
+    fprintf(stderr, "switchCase()\n");
+    fprintf(stdout, "switchCase()\n");
+}
+
 Object matchCase(Object matchee, Object *cases, int ncases, Object elsecase) {
     int i;
     int partcv[] = {1};

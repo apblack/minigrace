@@ -78,8 +78,37 @@ def switchTest = object {
             assert(x) shouldBe("true")
             assert(y) shouldBe("true")
         }
+
+        method testSwitchWithExpression {
+            def tabulatedDouble = { n -> switch(n)
+                case { 100 -> 200 }
+                case { 200 -> 400 }
+            }
+            assert (tabulatedDouble.apply(100)) shouldBe(200)
+            assert (tabulatedDouble.apply(200)) shouldBe(400)
+        }
+
+        method testSwitchWithExplicitException {
+            def NotFound = Exception.refine "NotFound"
+            def block = { n -> switch(n)
+                case { _ -> NotFound.raise "This is an invalid case" }
+            }
+            assert {block.apply(0)} shouldRaise(NotFound)
+        }
+
+        method testSwitchWithImplicitException {
+            def block = { n -> switch(n)
+                case { 100 -> 200 }
+            }
+            def blockWithDefault = { n -> switch(n)
+                case { 100 -> 200 }
+                case { _ -> 0 }
+            }
+            assert {block.apply(0)} shouldRaise(Exception)
+            assert (blockWithDefault.apply(0)) shouldBe(0)
+        }
     }
 }
 
-def switchTests = gU.testSuite.fromTestMethodsIn(switchTest).runAndPrintResults
+def switchTests = gU.testSuite.fromTestMethodsIn(switchTest).debugAndPrintResults
 
