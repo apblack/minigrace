@@ -24,11 +24,14 @@ method new {
     var indentLevel := 0
     var startLine := 1
     var stringStart
-    
-    class Token.new() {
+ 
+    class Token.new(kin, val, siz) {
         def line is public = lineNumber
         def indent is public = indentLevel
         def linePos is public = startPosition
+        def kind is public = kin
+        def value is public = val
+        def size is public = siz
 
         var next is public := false
         var prev is public := false
@@ -42,138 +45,41 @@ method new {
         }
     }
 
-
-    class IdentifierToken.new(s) {
-        inherits Token.new
-        def kind is public = "identifier"
-        def value is public = s
-        def size is public = s.size
-    }
-    class StringToken.new(s) {
-        inherits Token.new
-        def kind is public = "string"
-        def value is public = s
-        def size is public = linePosition - stringStart + 1
-    }
+    class IdentifierToken.new(s) { inherits Token.new("identifier", s, s.size) }
+    class StringToken.new(s) { inherits Token.new("string", s, linePosition - stringStart + 1) }
     class MultiLineStringToken.new(s) {
-        inherits Token.new
-        def kind is public = "string"
-        def value is public = s
-        def size is public = s.size + 2
+        inherits Token.new("string", s, s.size + 2)
         def line' = startLine
         def linePos' = stringStart
         method line is override { line' }
         method linePos is override { linePos' }
     }
-    class CommentToken.new(s) {
-        inherits Token.new
-        def kind is public = "comment"
-        def value is public = s
-        def size = s.size + 2
-    }
-    class LBraceToken.new {
-        inherits Token.new
-        def kind is public = "lbrace"
-        def value is public = "\{"
-        def size is public = 1
-    }
-    class RBraceToken.new {
-        inherits Token.new
-        def kind is public = "rbrace"
-        def value is public = "}"
-        def size is public = 1
-    }
-    class LParenToken.new {
-        inherits Token.new
-        def kind is public = "lparen"
-        def value is public = "("
-        def size is public = 1
-    }
-    class RParenToken.new {
-        inherits Token.new
-        def kind is public = "rparen"
-        def value is public = ")"
-        def size is public = 1
-    }
-    class LSquareToken.new {
-        inherits Token.new
-        def kind is public = "lsquare"
-        def value is public = "["
-        def size is public = 1
-    }
+    class CommentToken.new(s) { inherits Token.new("comment", s, s.size + 2) }
+    class LBraceToken.new { inherits Token.new("lbrace", "\{", 1) }
+    class RBraceToken.new { inherits Token.new("rbrace", "}", 1) }
+    class LParenToken.new { inherits Token.new("lparen", "(", 1) }
+    class RParenToken.new { inherits Token.new("rparen", ")", 1) }
+    class LSquareToken.new {inherits Token.new("lsquare", "[", 1) }
     class RSquareToken.new {
-        inherits Token.new
+        inherits Token.new("rsquare", "]", 1)
         def kind is public = "rsquare"
         def value is public = "]"
         def size is public = 1
     }
-    class CommaToken.new {
-        inherits Token.new
-        def kind is public = "comma"
-        def value is public = ","
-        def size is public = 1
-    }
-    class ColonToken.new {
-        inherits Token.new
-        def kind is public = "colon"
-        def value is public = ":"
-        def size is public = 1
-    }
-    class DotToken.new {
-        inherits Token.new
-        def kind is public = "dot"
-        def value is public = "."
-        def size is public = 1
-    }
+    class CommaToken.new { inherits Token.new("comma", ",", 1) }
+    class ColonToken.new { inherits Token.new("colon", ":", 1) }
+    class DotToken.new { inherits Token.new("dot", ".", 1) }
     class NumToken.new(v, b) {
-        inherits Token.new
-        def kind is public = "num"
-        def value is public = v
+        inherits Token.new("num", v, linePosition - startPosition)
         def base is public = b
-        def size is public = linePosition - startPosition
     }
-    class KeywordToken.new(v) {
-        inherits Token.new
-        def kind is public = "keyword"
-        def value is public = v
-        def size is public = v.size
-    }
-    class OpToken.new(v) {
-        inherits Token.new
-        def kind is public = "op"
-        def value is public = v
-        def size is public = v.size
-    }
-    class ArrowToken.new {
-        inherits Token.new
-        def kind is public = "arrow"
-        def value is public = "->"
-        def size is public = 2
-    }
-    class BindToken.new {
-        inherits Token.new
-        def kind is public = "bind"
-        def value is public = ":="
-        def size is public = 2
-    }
-    class SemicolonToken.new {
-        inherits Token.new
-        def kind is public = "semicolon"
-        def value is public = ";"
-        def size is public = 1
-    }
-    class LGenericToken.new {
-        inherits Token.new
-        def kind is public = "lgeneric"
-        def value is public = "<"
-        def size is public = 1
-    }
-    class RGenericToken.new {
-        inherits Token.new
-        def kind is public = "rgeneric"
-        def value is public = ">"
-        def size is public = 1
-    }
+    class KeywordToken.new(v) { inherits Token.new("keyword", v, v.size) }
+    class OpToken.new(v) { inherits Token.new("op", v, v.size) }
+    class ArrowToken.new { inherits Token.new("arrow", "->", 2) }
+    class BindToken.new { inherits Token.new("bind", ":=", 2) }
+    class SemicolonToken.new { inherits Token.new("semicolon", ";", 1) }
+    class LGenericToken.new { inherits Token.new("lgeneric", "<", 1) }
+    class RGenericToken.new { inherits Token.new("rgeneric", ">", 1) }
 
 
     object {

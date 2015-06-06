@@ -405,9 +405,10 @@ class catchCaseNode.new(block, cases', finally') {
         catchCaseNode.new(nullNode, emptySeq, false).shallowCopyFieldsFrom(self) parent(p)
     }
 }
-class matchCaseNode.new(matchee', cases', elsecase') {
+
+class genCaseNode.new(kindPrefix, matchee', cases', elsecase') {
     inherits baseNode.new
-    def kind is public = "matchcase"
+    def kind is public = kindPrefix ++ "case"
     var value is public := matchee'
     var cases is public := cases'
     var elsecase is public := elsecase'
@@ -451,7 +452,7 @@ class matchCaseNode.new(matchee', cases', elsecase') {
         for (0..(depth - 1)) do { i ->
             spc := spc ++ "    "
         }
-        var s := "match(" ++ self.value.toGrace(0) ++ ")"
+        var s := kindPrefix ++ "(" ++ self.value.toGrace(0) ++ ")"
         for (self.cases) do { case ->
             s := s ++ "\n" ++ spc ++ "    " ++ "case " ++ case.toGrace(depth + 2)
         }
@@ -461,9 +462,18 @@ class matchCaseNode.new(matchee', cases', elsecase') {
         s
     }
     method shallowCopyWithParent(p) {
-        matchCaseNode.new(nullNode, emptySeq, false).shallowCopyFieldsFrom(self) parent(p)
+        genCaseNode.new(kindPrefix, nullNode, emptySeq, false).shallowCopyFieldsFrom(self) parent(p)
     }
 }
+
+class matchCaseNode.new(matchee', cases', elsecase') {
+    inherits genCaseNode.new("match", matchee', cases', elsecase')
+}
+
+class switchCaseNode.new(switchee', cases', elsecase') {
+    inherits genCaseNode.new("switch", switchee', cases', elsecase')
+}
+
 class methodTypeNode.new(name', signature', rtype') {
     // Represents the signature of a method in a type literal
     // [signature]

@@ -1392,8 +1392,13 @@ method catchcase { // TODO: This construct is DEPRECATED. Remove it.
     values.push(ast.catchCaseNode.new(mainblock, cases, finally))
     minIndentLevel := localmin
 }
-method matchcase {
-    if (!(accept("identifier") && (sym.value == "match"))) then {
+
+// Generalized case (for match case, switch case)
+// These AST nodes will be treated differently,
+// but they have the very same syntactic structure (except keyword).
+method gencase(keyword, casenode) {
+    //print("\n\nParser: matchcase\n\n");
+    if (!(accept("identifier") && (sym.value == keyword))) then {
         return 0
     }
     def localmin = minIndentLevel
@@ -1416,7 +1421,7 @@ method matchcase {
             suggestion.insert("(")beforeToken(sym)
             suggestion.insert(")")afterToken(nextTok.prev)andTrailingSpace(true)
         }
-        errormessages.syntaxError("A match statement must have an expression in parentheses after the 'match'.")atPosition(
+        errormessages.syntaxError("A {keyword} statement must have an expression in parentheses after the '{keyword}'.")atPosition(
             matchTok.line, matchTok.linePos + matchTok.size)withSuggestion(suggestion)
     }
     next
@@ -1428,7 +1433,7 @@ method matchcase {
         } else {
             suggestion.replaceTokenRange(sym, nextTok.prev)leading(true)trailing(false)with("«expression»")
         }
-        errormessages.syntaxError("A match statement must have an expression in parentheses after the 'match'.")atPosition(
+        errormessages.syntaxError("A {keyword} statement must have an expression in parentheses after the '{keyword}'.")atPosition(
             sym.line, sym.linePos)withSuggestion(suggestion)
     }
     def matchee = values.pop
@@ -1456,7 +1461,7 @@ method matchcase {
                 } else {
                     suggestion.replaceTokenRange(sym, nextTok.prev)leading(true)trailing(false)with("«expression»")
                 }
-                errormessages.syntaxError("A match statement must have either a matching block or an expression in parentheses after the 'case'.")atPosition(
+                errormessages.syntaxError("A {keyword} statement must have either a matching block or an expression in parentheses after the 'case'.")atPosition(
                     sym.line, sym.linePos)withSuggestion(suggestion)
             }
             if(sym.kind != "rparen") then {
@@ -1479,70 +1484,25 @@ method matchcase {
                 suggestion.insert(" («expression»)")afterToken(lastToken)
                 suggestions.push(suggestion)
                 suggestion := errormessages.suggestion.new
-                suggestion.insert(" \{ «match expression» }")afterToken(lastToken)
+                suggestion.insert(" \{ «{keyword} expression» }")afterToken(lastToken)
                 suggestions.push(suggestion)
             } else {
                 suggestion.insert(" }")afterToken(nextTok.prev)
                 suggestion.insert(" \{")afterToken(lastToken)
                 suggestions.push(suggestion)
             }
-            errormessages.syntaxError("A match statement must have either a matching block or an expression in parentheses after the 'case'.")atPosition(
+            errormessages.syntaxError("A {keyword} statement must have either a matching block or an expression in parentheses after the 'case'.")atPosition(
                 sym.line, sym.linePos)withSuggestions(suggestions)
         }
         cases.push(values.pop)
     }
-//    if (accept("identifier") && (sym.value == "else")) then {
-//        next
-//        if (accept("lbrace")) then {
-//            block
-//        } elseif (accept("lparen")) then {
-//            next
-//            if(didConsume({expression(blocksOK)}).not) then {
-//                def suggestion = errormessages.suggestion.new
-//                def nextTok = findNextValidToken("rparen")
-//                if(nextTok == sym) then {
-//                    suggestion.insert("«expression»")afterToken(lastToken)
-//                } else {
-//                    suggestion.replaceTokenRange(sym, nextTok.prev)leading(true)trailing(false)with("«expression»")
-//                }
-//                errormessages.syntaxError("A match statement must have either a block or an expression in parentheses after the 'else'.")atPosition(
-//                    sym.line, sym.linePos)withSuggestion(suggestion)
-//            }
-//            if(sym.kind != "rparen") then {
-//                checkBadOperators
-//                def suggestion = errormessages.suggestion.new
-//                suggestion.insert(")")afterToken(lastToken)
-//                errormessages.syntaxError("An expression beginning with a '(' must end with a ')'.")atPosition(
-//                    lastToken.line, lastToken.linePos + lastToken.size)withSuggestion(suggestion)
-//            }
-//            next
-//        } else {
-//            def suggestions = []
-//            def nextTok = findNextTokenIndentedAt(lastToken)
-//            var suggestion := errormessages.suggestion.new
-//            if(nextTok == false) then {
-//                suggestion.insert(" }")afterToken(tokens.first)
-//                suggestion.insert(" \{")afterToken(lastToken)
-//                suggestions.push(suggestion)
-//            } elseif(nextTok == sym) then {
-//                suggestion.insert(" («expression»)")afterToken(lastToken)
-//                suggestions.push(suggestion)
-//                suggestion := errormessages.suggestion.new
-//                suggestion.insert(" \{ «expression» }")afterToken(lastToken)
-//                suggestions.push(suggestion)
-//            } else {
-//                suggestion.insert(" }")afterToken(nextTok.prev)
-//                suggestion.insert(" \{")afterToken(lastToken)
-//                suggestions.push(suggestion)
-//            }
-//            errormessages.syntaxError("A match statement must have either a block or an expression in parentheses after the 'else'.")atPosition(
-//                sym.line, sym.linePos)withSuggestions(suggestions)
-//        }
-//        elsecase := values.pop
-//    }
-    values.push(ast.matchCaseNode.new(matchee, cases, elsecase))
+    values.push(casenode.new(matchee, cases, elsecase))
     minIndentLevel := localmin
 }
+
+method switchcase {gencase("switch", ast.matchCaseNode)}
+method matchcase {gencase("match", ast.matchCaseNode)}
+
 // Accept a term. Terms consist only of single syntactic units and
 // do not contain any operators or parentheses, unlike expression.
 method term {
@@ -1555,6 +1515,8 @@ method term {
         pushoctets
     } elseif(accept("identifier") && (sym.value == "match")) then {
         matchcase
+    } elseif(accept("identifier") && (sym.value == "switch")) then {
+        switchcase
     } elseif(accept("identifier") && (sym.value == "catch")) then {
         catchcase
     } elseif(accept("identifier") && (sym.value == "try")) then {
