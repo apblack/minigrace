@@ -3284,10 +3284,22 @@ GraceExceptionPacket.prototype = {
             var lineNumber = callmethod(this, "lineNumber", [0]);
             var moduleName = callmethod(this, "moduleName", [0]);
             var errMsg = callmethod(exceptionName, "++", [1], new GraceString(" on line "));
+            var msgTxt = callmethod(this, "message", [0]);
             errMsg = callmethod(callmethod(errMsg, "++", [1], lineNumber), "++", [1], new GraceString(" of "));
             errMsg = callmethod(callmethod(errMsg, "++", [1], moduleName), "++", [1], new GraceString(": "));
-            errMsg = callmethod(errMsg, "++", [1], callmethod(this, "message", [0]));
+            errMsg = callmethod(errMsg, "++", [1], msgTxt);
             Grace_errorPrint(errMsg);
+            if (inBrowser) {
+                var session = window._currentEditor.session;
+            }
+            if (session) {
+                 session.setAnnotations([ {
+                    "row": lineNumber - 1,
+                    "column": 1,
+                    "type": "error",
+                    "text": exceptionName._value + ": " + msgTxt._value
+                } ]);
+            }
             var bt = callmethod(this, "backtrace", [0]);
             var prefix = new GraceString("  raised at ");
             var cf = new GraceString("  called from ");
