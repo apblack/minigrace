@@ -4865,14 +4865,7 @@ int find_resource(const char *name, char *buf) {
 
     struct stat st;
 
-    // first try "."
-    strcpy(buf, "./");
-    strcat(buf, name);
-    if (stat(buf, &st) == 0) {
-        return 1;
-    }
-
-    // next try the elements of GRACE_MODULE_PATH
+    // try the elements of GRACE_MODULE_PATH
     char gmp[PATH_MAX];
     char *envEnquiry = getenv("GRACE_MODULE_PATH");
     if (envEnquiry) {
@@ -4891,6 +4884,13 @@ int find_resource(const char *name, char *buf) {
         }
     }
 
+    // next try "."
+    strcpy(buf, "./");
+    strcat(buf, name);
+    if (stat(buf, &st) == 0) {
+        return 1;
+    }
+
     // finally try execdir
     char *execPath = grcstring(execDir());
     strncpy(buf, execPath, PATH_MAX);
@@ -4899,6 +4899,8 @@ int find_resource(const char *name, char *buf) {
     if(stat(buf, &st) == 0){
         return 1;
     }
+
+    // otherwise fail
     return 0;
 }
 int find_gso(const char *name, char *buf) {
