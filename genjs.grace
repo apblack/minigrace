@@ -928,6 +928,7 @@ method compileSuperRequest(o, args) {
 method compileOuterRequest(o, args) {
     out "// call case 2: outer request"
     def ot = compilenode(o.receiver)
+    out "onSelf = true;";
     out("var call{auto_count} = {requestCall}({ot}" ++
           ", \"{escapestring(o.receiver.nameString)}\", [{partl(o)}]{assembleArguments(args)});")
 }
@@ -943,7 +944,7 @@ method compileOuter(o) {
 }
 method compileSelfRequest(o, args) {
     out "// call case 4: self request"
-    out("onSelf = true;");
+    out "onSelf = true;"
     out("var call{auto_count} = {requestCall}(this" ++
           ", \"{escapestring(o.nameString)}\", [{partl(o)}]{assembleArguments(args)});")
 }
