@@ -74,7 +74,7 @@ method noteLineNumber(n)comment(c) {
 }
 
 method forceLineNumber(n)comment(c) {
-    // force the generation of code that sets the line number.
+    // force the generation of code that sets the line number.  
     // Used at the start of a method
     noteLineNumber(n)comment(c)
     if (emitPositions) then {
@@ -161,63 +161,21 @@ method compileobjouter(selfr, outerRef) {
     auto_count := auto_count + 1
     var nm := escapestring("outer")
     var nmi := escapeident("outer")
-    def emod = escapeident(modname)
     out("{selfr}.outer = {outerRef};")
-    out("var reader_{emod}_{nmi}{myc} = function() \{")
+    out("var reader_{nmi}{myc} = function() \{")
     out("  return this.outer;")
     out("\};")
-    out("{selfr}.methods[\"{nm}\"] = reader_{emod}_{nmi}{myc};")
+    out("{selfr}.methods[\"{nm}\"] = reader_{nmi}{myc};")
 }
-method compileobjtype(o, selfr, pos) {
-    var val := "undefined"
-    var myc := auto_count
-    auto_count := auto_count + 1
-    var nm := escapestring(o.value)
-    var nmi := escapeident(o.value)
-    def emod = escapeident(modname)
-    o.anonymous := true
-    val := compilenode(o)
-    out(selfr ++ ".data[\"" ++ nm ++ "\"] = " ++ val ++ ";")
-    out("    var reader_{emod}_{nmi}{myc} = function() \{")
-    out("    return this.data[\"" ++ nm ++ "\"];")
-    out("  \};")
-    out("  reader_{emod}_{nmi}{myc}.def = true;")
-    var isReadable := false
-    for (o.annotations) do {ann->
-        if ((ann.kind == "identifier") &&
-            {ann.value == "confidential"}) then {
-            out "  reader_{emod}_{nmi}{myc}.confidential = true;"
-        }
-    }
-    out "{selfr}.methods[\"{nm}\"] = reader_{emod}_{nmi}{myc};"
-}
-method compileobjdefdec(o, selfr, pos) {
-    var val := "undefined"
-    if (false != o.value) then {
-        if (o.value.kind == "object") then {
-            compileobject(o.value, selfr, false)
-            val := o.value.register
-        } else {
-            val := compilenode(o.value)
-        }
-    }
-    var myc := auto_count
-    auto_count := auto_count + 1
-    var nm := escapestring(o.name.value)
-    var nmi := escapeident(o.name.value)
-    def emod = escapeident(modname)
+method compileobjtype(o, selfr) {
+    def val = compilenode(o)
+    def nm = escapestring(o.value)
     out "{selfr}.data[\"{nm}\"] = {val};"
-    out "var reader_{emod}_{nmi}{myc} = function() \{"
-    out "  return this.data[\"{nm}\"];"
-    out "\};"
-    out "reader_{emod}_{nmi}{myc}.def = true;"
-    if (o.isReadable.not) then {
-        out "reader_{emod}_{nmi}{myc}.confidential = true;"
-    }
-    out "{selfr}.methods[\"{nm}\"] = reader_{emod}_{nmi}{myc};"
-    if (ast.findAnnotation(o, "parent")) then {
-        out "  {selfr}.superobj = {val};"
-    }
+}
+method compileobjdefdec(o, selfr) {
+    def val = compilenode(o.value)
+    def nm = escapestring(o.name.value)
+    out "{selfr}.data[\"{nm}\"] = {val};"
     if (emitTypeChecks) then {
         if (o.dtype != false) then {
             if (o.dtype.value != "Unknown") then {
@@ -229,35 +187,11 @@ method compileobjdefdec(o, selfr, pos) {
         }
     }
 }
-method compileobjvardec(o, selfr, pos) {
-    var val := "undefined"
-    if (false != o.value) then {
-        val := compilenode(o.value)
-    }
-    var myc := auto_count
-    auto_count := auto_count + 1
-    var nm := escapestring(o.name.value)
-    var nmi := escapeident(o.name.value)
-    def emod = escapeident(modname)
-    out(selfr ++ ".data[\"" ++ nm ++ "\"] = " ++ val ++ ";")
-    out("var reader_" ++ emod ++ "_" ++ nmi ++ myc ++ " = function() \{")
-    out("  return this.data[\"" ++ nm ++ "\"];")
-    out("\};")
-    out(selfr ++ ".methods[\"" ++ nm ++ "\"] = reader_" ++ emod ++
-        "_" ++ nmi ++ myc ++ ";")
-    out(selfr ++ ".data[\"" ++ nm ++ "\"] = " ++ val ++ ";")
-    out("var writer_" ++ emod ++ "_" ++ nmi ++ myc ++ " = function(argcv, o) \{")
-    out("  this.data[\"" ++ nm ++ "\"] = o;")
-    out "  return GraceDone;"
-    out("\};")
-    out(selfr ++ ".methods[\"" ++ nm ++ ":=(1)\"] = writer_" ++ emod ++
-        "_" ++ nmi ++ myc ++ ";")
-    if (o.isReadable.not) then {
-        out("reader_{emod}_{nmi}{myc}.confidential = true;")
-    }
-    if (o.isWritable.not) then {
-        out("writer_{emod}_{nmi}{myc}.confidential = true;")
-    }
+method compileobjvardec(o, selfr) {
+    if (false == o.value) then { return }
+    def val = compilenode(o.value)
+    def nm = escapestring(o.name.value)
+    out "{selfr}.data[\"{nm}\"] = {val};"
     if (emitTypeChecks) then {
         if (o.dtype != false) then {
             if (o.dtype.value != "Unknown") then {
@@ -272,80 +206,116 @@ method compileobjvardec(o, selfr, pos) {
         }
     }
 }
-method compileobject(o, outerRef, inheritingObject) {
-    var origInBlock := inBlock
-    inBlock := false
+
+method create (kind) field(o) {
+    // compile code that creates a field in objectUnderConstruction
     var myc := auto_count
     auto_count := auto_count + 1
-    def selfr = "obj" ++ myc
-    o.register := selfr
-    def superConstructor =
-        if (o.inTrait) then {
-            "GraceTrait"
-        } elseif {false == o.superclass} then {
-            "GraceObject"
-        } else {
-            "null"  // inheritance will be compiled later, when the inherit node is found
+    var nm := escapestring(o.name.value)
+    var nmi := escapeident(o.name.value)
+    out "objectUnderConstruction.data[\"{nm}\"] = undefined;"
+    out "var reader_{nmi}{myc} = function() \{  // reader method"
+    out "    return this.data[\"{nm}\"];"
+    out "\};"
+    out "reader_{nmi}{myc}.{kind} = true;"
+    if (o.isReadable.not) then {
+        out "reader_{nmi}{myc}.confidential = true;"
+    }
+    if (kind == "var") then {
+        out "objectUnderConstruction.methods[\"{nm}\"] = reader_{nmi}{myc};"
+        out "var writer_{nmi}{myc} = function(argcv, n) \{   // writer method"
+        out "    this.data[\"{nm}\"] = n;"
+        out "    return GraceDone;"
+        out "\};"
+        out "objectUnderConstruction.methods[\"{nm}:=(1)\"] = writer_{nmi}{myc};"
+        if (o.isWritable.not) then {
+            out "writer_{nmi}{myc}.confidential = true;"
         }
-    out "var {selfr} = Grace_allocObject({superConstructor}, \"{o.name}\");"
+    }
+}
+
+method compileObjectConstructor(o, outerRef) into (inheritingObj) {
+    var origInBlock := inBlock
+    inBlock := false
+
+    def selfr = o.register
     out "{selfr}.definitionModule = \"{modname}\";"
     out "{selfr}.definitionLine = {o.line};"
-    if (inheritingObject) then {
-        out "var inho{myc} = inheritingObject;"
-        out "while (inho{myc}.superobj) inho{myc} = inho{myc}.superobj;"
-        out "inho{myc}.superobj = {selfr};"
-        out "{selfr}.data = inheritingObject.data;"
-        out "if (inheritingObject.hasOwnProperty('_value'))"
-        out "  {selfr}._value = inheritingObject._value;"
-    }
+
+    out "var inho_{selfr} = inheritingObj;"
+    out "while (inho_{selfr}.superobj) inho_{selfr} = inho_{selfr}.superobj;"
+    out "inho_{selfr}.superobj = {selfr};"
+    out "{selfr}.data = {inheritingObj}.data;"
+    out "if ({inheritingObj}.hasOwnProperty('_value'))"
+    out "  {selfr}._value = {inheritingObj}._value;"
+
     compileobjouter(selfr, outerRef)
-    out("var obj_init_{myc} = function() \{")
+
+    // compile builder
+    out("var {selfr}_build = function(objectUnderConstruction) \{")
     increaseindent
-    out("var origSuperDepth = superDepth;")
-    out("superDepth = {selfr};")
-    var pos := 0
-    for (o.value) do { e ->
+    out "var origSuperDepth = superDepth;"
+    out "this = objectUnderConstruction;"
+    var superObj := "graceObject"
+    if (false != o.superclass) then {
+        compileInherits(o.superclass) in (o, inheritingObj)
+    }
+    out "{superObj}_build(superObj_{selfr});"
+    o.traits.do { t -> compileTrait(t) in (o, inheritingObj) }
+    var mutable := false
+    for (o.body) do { e ->
         if (e.kind == "method") then {
-            compilemethod(e, selfr)
+            compilemethod(e, inheritingObj)
+        } elseif { e.kind == "vardec" } then {
+            create "var" field (e)
+            mutable := true
+        } elseif { e.kind == "defdec" } then {
+            create "def" field (e)
+        } elseif { e.kind == "typedec" } then {
+            create "type" field (e)
         }
     }
-
-    // compile inherit
-    if (false != o.superclass) then {
-        compileInherits(o.superclass) in (o, selfr)
+    if (mutable) then {
+        out "objectUnderConstruction.mutable = true;"
     }
+    decreaseindent
+    out "\}"
 
-    // compile traits
-    o.usedTraits.do { t -> compileInherits(t) in (o, selfr) }
-
-    // compile body
-    o.value.do { e ->
+    // compile initializer
+    out("var {selfr}_initialize = function() \{")
+    increaseindent
+    o.body.do { e ->
         if (e.kind == "method") then {
         } elseif { e.kind == "vardec" } then {
-            compileobjvardec(e, selfr, pos)
-            out("{selfr}.mutable = true;")
-            pos := pos + 1
+            compileobjvardec(e, selfr)
         } elseif { e.kind == "defdec" } then {
-            compileobjdefdec(e, selfr, pos)
-            pos := pos + 1
+            compileobjdefdec(e, selfr)
         } elseif { e.kind == "typedec" } then {
             compiletypedec(e)
-            pos := pos + 1
         } elseif { e.kind == "object" } then {
-            compileobject(e, selfr, false)
+            compileobject(e, selfr)
         } else {
             compilenode(e)
         }
     }
-    out "superDepth = origSuperDepth;"
     decreaseindent
     out "\};"
-    if (inheritingObject) then {
-        out "obj_init_{myc}.apply(inheritingObject, []);"
-    } else {
-        out "obj_init_{myc}.apply({selfr}, []);"
-    }
+
+    out "{selfr}_initialize();"
     inBlock := origInBlock
+}
+method compileobject(o, outerRef) {
+    // compiles an object in all contexts _except_ inside a fresh method,
+    // where it may need to add its contents to an existing object
+    def myc = auto_count
+    auto_count := auto_count + 1
+    def selfr = "obj{myc}"
+    o.register := selfr
+    out "var {selfr} = Grace_allocObject(null, \"{o.name}\");  // create empty object"
+    def objcon = compileObjectConstructor(o, outerRef) into (selfr)
+    out "{objcon}_build(selfr);"
+    out "{objcon}_initialize();"
+    selfr
 }
 method compileblock(o) {
     var origInBlock := inBlock
@@ -516,7 +486,7 @@ method compileArgumentTypeChecks(o) {
                     def dtype = compilenode(p.dtype)
                     out("if (!Grace_isTrue(callmethod({dtype}, \"match(1)\"," ++
                         "  [1], arguments[curarg])))")
-                    out "    throw new GraceExceptionPacket(TypeErrorObject,"
+                    out "    throw new GraceExceptionPacket(TypeErrorObject," 
                     out "        new GraceString(\"argument {paramnr} in {part.name} (arg list {partnr}), which corresponds to parameter {p.value}, does not have \" + "
                     out "            callmethod({dtype}, \"asString\", [0])._value + \".\"));"
                 }
@@ -573,7 +543,7 @@ method compileFreshMethodBody(o) {
     }
     if (false != tailObject) then {
         o.body.push(tailObject)     // put tail object back
-        compileobject(tailObject, "this", true)
+        compileObjectConstructor(tailObject, "this") into "inheritingObject"
         ret := tailObject.register
     }
     compileResultTypeCheck(o, ret) onLine (lastLine)
@@ -585,7 +555,7 @@ method compileResultTypeCheck(o, ret) onLine (lineNr) {
         def dtype = compilenode(o.dtype)
         noteLineNumber (lineNr) comment "return value"
         out "if (!Grace_isTrue(callmethod({dtype}, \"match(1)\", [1], {ret})))"
-        out "    throw new GraceExceptionPacket(TypeErrorObject,"
+        out "    throw new GraceExceptionPacket(TypeErrorObject," 
         out "        new GraceString(\"result of method {o.canonicalName} does not have \" + "
         out "            callmethod({dtype}, \"asString\", [0])._value + \".\"));"
     }
@@ -1059,7 +1029,7 @@ method compileNativeCode(o) {
         errormessages.syntaxError "the first argument to native()code must be a string literal"
             atRange(param1.line, param1.linePos, param1.linePos)
     }
-    if (param1.value != "js") then {
+    if (param1.value != "js") then { 
         o.register := "GraceDone"
         return
     }
@@ -1122,7 +1092,7 @@ method compilenode(o) {
     } elseif { oKind == "matchcase" } then {
         compilematchcase(o)
     } elseif { oKind == "object" } then {
-        compileobject(o, "this", false)
+        compileobject(o, "this")
     } elseif { oKind == "typedec" } then {
         compiletypedec(o)
     } elseif { oKind == "typeliteral" } then {
@@ -1236,7 +1206,7 @@ method compile(moduleObject, of, rm, bt, glPath) {
         if (false != moduleObject.superclass) then {
             compileInherits(moduleObject.superclass) in (moduleObject, "this")
         }
-        moduleObject.usedTraits.do { t ->
+        moduleObject.usedTraits.do { t -> 
             compileInherits(t) in (moduleObject, "this")
         }
         moduleObject.methodsDo { o ->
@@ -1256,11 +1226,11 @@ method compile(moduleObject, of, rm, bt, glPath) {
     out("return this;")
     decreaseindent
     out("\}")
-
+    
     def generatedModuleName = formatModname(modname)
     def importList = imported.map{ each -> "'{each}'" }.asList.sort
     out "{generatedModuleName}.imports = {importList};"
-
+    
     moduleObject.imports := imports.other
     xmodule.writeGctForModule(moduleObject)
 
@@ -1299,7 +1269,7 @@ method compile(moduleObject, of, rm, bt, glPath) {
 method compileInherits(o) in (objNode, selfr) {
     // o is an inherit node: compile it.
     // selfr is the name of enclosing object; objNode is the enclosing AST node
-    if (o.isUse) then {
+    if (o.isUse) then { 
         compileTrait(o) in (objNode, selfr)
     } else {
         compileSuper(o, selfr)
