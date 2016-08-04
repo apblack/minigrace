@@ -273,6 +273,7 @@ method compileObjectConstructor(o) into (objectUnderConstruction) {
     // the outer object of the object here being constructed
 
     var origInBlock := inBlock
+    def outerObject = currentObject
     inBlock := false
 
     if (o.register.isEmpty) then {
@@ -289,7 +290,7 @@ method compileObjectConstructor(o) into (objectUnderConstruction) {
         compileTrait(t) in (o, "this")
     }
     if (false != o.superclass) then {
-        compileSuper(o.superclass, "that")
+        compileSuper(o.superclass, "this")
     }
     compileInitialization(o, "this")
     decreaseindent
