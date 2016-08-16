@@ -1100,6 +1100,7 @@ def callNode = object {
         var isPattern is public := false
         var receiver is public := receiver'    // formerly `value`
         var isSelfRequest is public := false
+        var cachedIdentifier := uninitialized
 
         method onSelf {
             // mark as a self-request.  Answers self for chaining.
@@ -1185,12 +1186,9 @@ def callNode = object {
                     s := s ++ spc ++ "    " ++ g.pretty(depth + 2) ++ "\n"
                 }
             }
-            s := s ++ spc ++ "Arguments:"
+            s := s ++ spc ++ "Parts:"
             for (self.with) do { part ->
-                s := s ++ "\n  " ++ spc ++ "Part: " ++ part.name
-                for (part.args) do { arg ->
-                    s := s ++ "\n      " ++ spc ++ arg.pretty(depth + 2)
-                }
+                s := s ++ "\n  " ++ spc ++ part.pretty(depth + 2)
             }
             s
         }
@@ -1209,14 +1207,18 @@ def callNode = object {
         }
         method asIdentifier {
             // make and return an identifiderNode for my request
-            if (fakeSymbolTable == scope) then {
-                ProgrammingError.raise "asIdentifier requested on {pretty 0} when scope was fake"
+
+            if (uninitialized == cachedIdentifier) then {
+                if (fakeSymbolTable == scope) then {
+                    ProgrammingError.raise
+                        "asIdentifier requested on {pretty 0} when scope was fake"
+                }
+                cachedIdentifier := identifierNode.new(nameString, false) scope (scope)
+                cachedIdentifier.inRequest := true
+                cachedIdentifier.line := with.first.line
+                cachedIdentifier.linePos := with.first.linePos
             }
-            def resultNode = identifierNode.new (nameString, false) scope (scope)
-            resultNode.inRequest := true
-            resultNode.line := line
-            resultNode.linePos := linePos
-            return resultNode
+            cachedIdentifier
         }
         method asString { "call {receiver.pretty(0)}" }
         method shallowCopy {
