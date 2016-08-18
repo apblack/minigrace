@@ -1415,8 +1415,7 @@ method term {
 // (dotrest), postcircumfix square brackets, the rest of a method call,
 // or an operator expression.
 method expression(acceptBlocks) {
-    def startIndent = minIndentLevel
-    def sz = values.size
+    var sz := values.size
     util.setPosition(sym.line, sym.linePos)
     if (accept "lparen") then {
         def tmpStatementToken = statementToken
@@ -1454,7 +1453,6 @@ method expression(acceptBlocks) {
         postfixsquare
         valueexpressionrest
     }
-    minIndentLevel := startIndent
 }
 
 // Accept postcircumfix square brackets (as in x[y]) and replace the
@@ -1675,10 +1673,13 @@ method expressionrest(name) recursingWith (recurse) blocks (acceptBlocks) {
     minIndentLevel := startIndent
 }
 
-// Accept a member lookup with ".". This consumes the dot and
-// a following identifier, and will pass along to further lookups or
-// method calls on the result.
 method dotrest(acceptBlocks) {
+    // Accept a method request starting with ".". The receiver of the request
+    // is assumed to be on the values stack, and will be replaced by a
+    // memberNode representing this request, consuming the dot and all the
+    // parts of a following method name and its arguments.   Any following
+    // dotted requests will also be parsed, by recursive invocations.
+
     if (acceptSameLine("dot")) then {
         def startIndent = minIndentLevel
         util.setPosition(sym.line, sym.linePos)
