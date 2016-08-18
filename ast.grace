@@ -1216,7 +1216,7 @@ def callNode = object {
                 cachedIdentifier := identifierNode.new(nameString, false) scope (scope)
                 cachedIdentifier.inRequest := true
                 cachedIdentifier.line := with.first.line
-                cachedIdentifier.linePos := with.first.linePos
+                cachedIdentifier.linePos := linePos
             }
             cachedIdentifier
         }
@@ -2692,9 +2692,9 @@ def requestPart = object {
                 spc := spc ++ "  "
             }
             var s := "{super.pretty(depth)}: {name}"
-            s := "{s}\n    {spc}Args:"
+            s := "{s}\n{spc}Args:"
             for (args) do { a ->
-                s := "{s}\n    {spc}{a.pretty(depth + 4)}"
+                s := "{s}\n  {spc}{a.pretty(depth + 3)}"
             }
             s
         }
