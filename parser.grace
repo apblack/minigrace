@@ -214,8 +214,12 @@ method acceptAfterSpaces (t) onLineOf (other) {
 method accept (t) onLineOfLastOr (other) {
     // True if the current token is a t, and it is on the same logical
     // line as the last token, or the other token.
-    (sym.kind == t) && (((other.line == sym.line) ||
-        (sym.indent > other.indent)) || (lastToken.line == sym.line))
+    if (sym.kind != t) then { return false }
+    if (lastToken.line == sym.line) then { return true }
+    if (sym.indent > lastToken.indent) then { return true }  // continuation last
+    if (other.line == sym.line) then { return true }
+    if (sym.indent > other.indent) then { return true }      // continuation of other
+    return false
 }
 method acceptArgumentOnLineOf(tok) {
     // True if the current token can start an argument to a request
@@ -300,45 +304,35 @@ method doannotation {
     next
     def anns = [ ]
     if(didConsume({expression(noBlocks)}).not) then {
-        def suggestions = [ ]
-        var suggestion := errormessages.suggestion.new
-        def nextTok = findNextValidToken( ["bind"] )
-        if(nextTok == sym) then {
-            suggestion.insert(" «annotation»")afterToken(lastToken)
-        } else {
-            suggestion.replaceTokenRange(sym, nextTok.prev)leading(true)trailing(false)with(" «annotation»")
-        }
-        suggestions.push(suggestion)
-        suggestion := errormessages.suggestion.new
-        suggestion.deleteTokenRange(lastToken, nextTok.prev)leading(true)trailing(false)
-        suggestions.push(suggestion)
-        errormessages.syntaxError("one or more annotations separated by commas must follow 'is'.")
-            atRange(lastToken.line, lastToken.linePos + lastToken.size + 1)
-            withSuggestions(suggestions)
+        errorMissingAnnotation
     }
     while {accept("comma")} do {
         anns.push(checkAnnotation(values.pop))
         next
         if(didConsume({expression(noBlocks)}).not) then {
-            def suggestions = [ ]
-            var suggestion := errormessages.suggestion.new
-            def nextTok = findNextValidToken( ["bind"] )
-            if(nextTok == sym) then {
-                suggestion.insert(" «annotation»")afterToken(lastToken)
-            } else {
-                suggestion.replaceTokenRange(sym, nextTok.prev)leading(true)trailing(false)with(" «annotation»")
-            }
-            suggestions.push(suggestion)
-            suggestion := errormessages.suggestion.new
-            suggestion.deleteTokenRange(lastToken, nextTok.prev)leading(true)trailing(false)
-            suggestions.push(suggestion)
-            errormessages.syntaxError("one or more annotations separated by commas must follow 'is'.")
-                atRange(lastToken.line, lastToken.linePos + lastToken.size + 1)
-                withSuggestions(suggestions)
+            errorMissingAnnotation
         }
     }
     anns.push(checkAnnotation(values.pop))
     anns
+}
+
+method errorMissingAnnotation {
+    def suggestions = [ ]
+    var suggestion := errormessages.suggestion.new
+    def nextTok = findNextValidToken( ["bind"] )
+    if(nextTok == sym) then {
+        suggestion.insert(" «annotation»")afterToken(lastToken)
+    } else {
+        suggestion.replaceTokenRange(sym, nextTok.prev)leading(true)trailing(false)with(" «annotation»")
+    }
+    suggestions.push(suggestion)
+    suggestion := errormessages.suggestion.new
+    suggestion.deleteTokenRange(lastToken, nextTok.prev)leading(true)trailing(false)
+    suggestions.push(suggestion)
+    errormessages.syntaxError("one or more annotations separated by commas must follow 'is'.")
+        atRange(lastToken.line, lastToken.linePos + lastToken.size + 1)
+        withSuggestions(suggestions)
 }
 
 method blank {
@@ -422,7 +416,7 @@ method block {
         def btok = sym
         next
         var minInd := statementIndent + 2
-        var startIndent := statementIndent
+        def startIndent = statementIndent
         var expr1
         var s := sym
         var tmp
@@ -998,6 +992,7 @@ method identifier {
 }
 
 method prefixop {
+    def startIndent = minIndentLevel
     if (accept "op") then {
         var op := sym.value
         next
@@ -1050,6 +1045,7 @@ method prefixop {
         def call = ast.callNode.new(rcvr,
             [ ast.requestPart.request("prefix" ++ op) withArgs( [] ) ] )
         values.push(call)
+        minIndentLevel := startIndent
     }
 }
 
@@ -1419,7 +1415,8 @@ method term {
 // (dotrest), postcircumfix square brackets, the rest of a method call,
 // or an operator expression.
 method expression(acceptBlocks) {
-    var sz := values.size
+    def startIndent = minIndentLevel
+    def sz = values.size
     util.setPosition(sym.line, sym.linePos)
     if (accept "lparen") then {
         def tmpStatementToken = statementToken
@@ -1457,6 +1454,7 @@ method expression(acceptBlocks) {
         postfixsquare
         valueexpressionrest
     }
+    minIndentLevel := startIndent
 }
 
 // Accept postcircumfix square brackets (as in x[y]) and replace the
@@ -1534,8 +1532,10 @@ method expressionrest(name) recursingWith (recurse) blocks (acceptBlocks) {
     // Process the rest of an operator expression using the shunting-yard
     // algorithm. This method uses the oprec and toprec methods above to
     // ensure the correct precedence, and treats all operators as
-    // left-associative.  It is parametrised so that it
+    // left-associative.  It is parameterised so that it
     // can be used for both type- and value- expressions.
+    
+    def startIndent = minIndentLevel
     var terms := [] // List of operands yet to be used
     var ops := [] // Operator stack
     var o
@@ -1672,6 +1672,7 @@ method expressionrest(name) recursingWith (recurse) blocks (acceptBlocks) {
     if (terms.size > 0) then {
         errormessages.syntaxError("values left on term stack.")atPosition(sym.line, sym.linePos)
     }
+    minIndentLevel := startIndent
 }
 
 // Accept a member lookup with ".". This consumes the dot and
@@ -1679,6 +1680,7 @@ method expressionrest(name) recursingWith (recurse) blocks (acceptBlocks) {
 // method calls on the result.
 method dotrest(acceptBlocks) {
     if (acceptSameLine("dot")) then {
+        def startIndent = minIndentLevel
         util.setPosition(sym.line, sym.linePos)
         var lookuptarget := values.pop
         next
@@ -1705,105 +1707,104 @@ method dotrest(acceptBlocks) {
             errormessages.syntaxError("a field or method name must follow a '.'.")atPosition(
                 sym.line, sym.linePos)withSuggestions(suggestions)
         }
+        minIndentLevel := startIndent
     }
 }
 
-// Accept a method invocation indicated by parentheses. Unparenthesised
-// method calls are left as "member" AST nodes and processed correctly at
-// a later stage.
 method callrest(acceptBlocks) {
+    // Accept a method request with arguments, if they are present.
+    // Method requests without arguments are left as "member" AST nodes
+
+    // The top of the values stack may be an identifierNode, which will become
+    // the method name of an implicit request, or a memberNode, whose receiver
+    // will become the receiver of the parsed call, and whose and nameString
+    // will become the first part-name of the method name.  It may also
+    // be some other expression (such as a literal), in which case there
+    // can be no arguments, and there is nothing to do.
+    // Leaves the stack depth unchanged.
+
     if (values.size == 0) then {
-        return 0
+        return
     }
     var meth := values.pop
     if (meth.kind != "identifier") then {
         if (meth.kind != "member") then {
             values.push(meth)
-            return 0
+            return
         }
     }
     def lnum = meth.line
     def lpos = meth.linePos
     var methn := meth.nameString
-    def btok = sym
-    def arguments = []
-    def part = ast.requestPart.new.setPositionFrom(meth)
-    arguments.push(part)
-    var hadcall := false
+    def argumentParts = []
+    def part = ast.requestPart.request(methn) withArgs [].setPositionFrom(meth)
+    argumentParts.push(part)
+    var foundArgs := false
     var tok := lastToken
-    var startInd := minIndentLevel
     var genericIdents := false
     if (acceptSameLine "lgeneric") then {
         genericIdents := typeArgs
     }
-    if (acceptSameLine "lparen") then {
-        part.name := methn
-        tok := sym
-        hadcall := true
-        parenthesizedArg(part)
-    } elseif { acceptBlocks.not && {accept("lbrace")onLineOf(tok)} } then {
-        values.push(meth)
-    } elseif { acceptArgumentOnLineOf(tok) } then {
-        tok := sym
-        hadcall := true
-        part.name := methn
-        term
-        var ar := values.pop
-        part.args.push(ar)
-    } elseif { meth.isIdentifier } then {
-        values.push(meth)
-    } elseif { meth.isMember } then {
-        var root := meth.receiver
-        var outroot := meth
-        while {root.isMember} do {
-            outroot := root
-            root := root.receiver
-        }
-        if (root.isIdentifier) then {
-            values.push(meth)
+    foundArgs := parseArgumentsFor(meth) into (part) acceptBlocks (acceptBlocks)
+    
+    if (foundArgs) then {
+        def realRcvr = if (meth.isIdentifier) then {
+            ast.implicit.setPositionFrom(meth)
         } else {
-            meth.generics := genericIdents
-            values.push(meth)
+            meth.receiver
         }
-    }
-    if (hadcall) then {
-        if (accept("identifier")onLineOfLastOr(tok)) then {
-            // Multi-part method name
-            def meth' = ast.identifierNode.new(methn, false)
-            meth'.line := lnum
-            meth'.linePos := lpos
-            methn := callmprest(meth', arguments, tok)
-            if (meth.kind == "member") then {
-                // callmprest loses this information, so restore
-                // the member lookup (for x.between(3)and(10)-type
-                // calls).
-                meth := ast.memberNode.new(methn.value, meth.receiver)
-                meth.line := methn.line
-                meth.linePos := methn.linePos
-            } else {
-                meth := methn
+        meth := ast.callNode.new(realRcvr, argumentParts).setPositionFrom(realRcvr)
+
+        while {accept "identifier" onLineOfLastOr (statementToken)} do {
+            // parse more parts of a multi-part request
+            def argList = [ ]
+            def namePart = ast.requestPart.request(sym.value) withArgs(argList).setPositionFrom(sym)
+            next
+            def argsFound = parseArgumentsFor(meth) into (namePart) acceptBlocks (acceptBlocks)
+            if (argsFound.not) then {
+                def suggestion = errormessages.suggestion.new
+                suggestion.insert "(‹exression›)" afterToken (lastToken)
+                errormessages.syntaxError("a multi-part method request must end with an argument list," ++
+                    " which must be parenthesized, unless it is self-delimiting.")
+                        atPosition(sym.line, sym.linePos) withSuggestion (suggestion)
             }
+            argumentParts.addLast(namePart)
         }
-        util.setline(lnum)
-        if (meth.isIdentifier) then {
-            meth := ast.implicit
-        } else {
-            meth := meth.receiver    // because meth's `request` part duplicates
-                                     // the first part of the method name
-        }
-        def call = ast.callNode.new(meth, arguments)
-        call.line := lnum
-        call.linePos := lpos
-        call.generics := genericIdents
-        values.push(call)
-    } elseif {false != genericIdents} then {
-        meth.generics := genericIdents
     }
-    minIndentLevel := startInd
+    meth.generics := genericIdents
+    values.push(meth)
     dotrest(acceptBlocks)
+    if (false ≠ genericIdents) then {
+        util.log 65 verbose "call on line {lnum}: generics = {meth.generics}\n values.last = {values.last.pretty 4}"
+    }
 }
 
-method parenthesizedArg(part) {
+method parseArgumentsFor(meth) into (part) acceptBlocks (acceptBlocks) {
+    // `meth` is a memberNode or an identifier.
+    // Parses the arguments for `part`, a requestPart of a method request.
+    // If arguments are present, adds them to `part.args` and answers true.
+    // Answers false if no arguments are present.
+
+
+    var tok := lastToken
+    if (acceptSameLine "lparen") then {
+        part.name := meth.nameString
+        tok := sym
+        parenthesizedArgs(part)
+        true
+    } elseif { acceptBlocks.not && { accept "lbrace" onLineOf (statementToken) } } then {
+        false
+    } elseif { acceptArgumentOnLineOf (tok) } then {
+        tok := sym
+        term
+        part.args.push(values.pop)
+        true
+    } else {
+        false
+    }
+}
+
+method parenthesizedArgs(part) {
     next
     ifConsume {expression(blocksOK)} then {
         // For matching blocks - same as below
@@ -1842,7 +1843,7 @@ method parenthesizedArg(part) {
             expr.dtype := values.pop
             values.push(expr)
         }
-        while {accept("comma")} do {
+        while {accept "comma"} do {
             part.args.push(values.pop)
             next
             if(didConsume({expression(blocksOK)}).not) then {
@@ -1954,130 +1955,10 @@ method typeArg {
     }
 }
 
-method callmprest(meth, arguments, tok) {
-    // Parses the rest of a multi-part method name.
-    // meth is an identifierNode representing the first part of the name.
-    // Returns a new identifierNode, representing the full method name,
-    // and updates the collection `arguments` with the parsed arguments.
-    var methname := meth.value
-    var nxt
-    var lp := meth.linePos
-    var part
-    while {accept("identifier")onLineOf(tok)
-           || accept("identifier")onLineOf(lastToken)} do {
-        // Each word must start on the same line as the preceding parameter
-        // ended.
-        part := ast.requestPart.new
-        arguments.push(part)
-        methname := methname ++ "()"
-        pushidentifier
-        nxt := values.pop
-        methname := methname ++ nxt.value
-        part.name := nxt.value
-        var isTerm := false
-        if (accept "lparen") then {
-            next    // skip over the `(`
-        } elseif { acceptArgumentOnLineOf(lastToken) } then {
-            isTerm := true
-        } else {
-            def suggestion = errormessages.suggestion.new
-            if(sym.kind == "identifier") then {
-                suggestion.replaceToken(sym)leading(true)trailing(false)with("({sym.value})")
-                if(methname == "while()do") then {
-                    errormessages.syntaxError("a while loop must have either a loop body in braces, or a block in parentheses.")atPosition(
-                        sym.line, sym.linePos)withSuggestion(suggestion)
-                } elseif { methname == "for()do" } then {
-                    errormessages.syntaxError("a for loop must have either a loop body in braces, or a block in parentheses.")atPosition(
-                        sym.line, sym.linePos)withSuggestion(suggestion)
-                }
-                errormessages.syntaxError("each argument list in a multi-part method request must be parenthesized, unless it is self-delimiting.")atPosition(
-                    sym.line, sym.linePos)withSuggestion(suggestion)
-            } else {
-                if (methname == "while()do") then {
-                    suggestion.insert(" \{}")afterToken(lastToken)
-                    errormessages.syntaxError("a while loop must have a body.")atPosition(
-                        sym.line, sym.linePos)withSuggestion(suggestion)
-                } elseif { methname == "for()do" } then {
-                    suggestion.insert(" \{}")afterToken(lastToken)
-                    errormessages.syntaxError("a for loop must have a body.")atPosition(
-                        sym.line, sym.linePos)withSuggestion(suggestion)
-                } else {
-                    suggestion.insert("()")afterToken(lastToken)
-                    errormessages.syntaxError("a multi-part method request must end with '()'.")atPosition(
-                        sym.line, sym.linePos)withSuggestion(suggestion)
-                }
-            }
-        }
-        def isEmpty = accept "rparen"
-        if (isTerm) then {
-            term
-        } else {
-            if(sym.kind != "rparen") then {
-                if(didConsume({expression(blocksOK)}).not) then {
-                    def suggestions = [ ]
-                    var suggestion := errormessages.suggestion.new
-                    def nextTok = findNextValidToken( ["rparen"] )
-                    if(nextTok == sym) then {
-                        suggestion.insert("«expression»")afterToken(lastToken)
-                    } else {
-                        suggestion.replaceTokenRange(sym, nextTok.prev)leading(true)trailing(false)with("«expression»")
-                        suggestions.push(suggestion)
-                        suggestion := errormessages.suggestion.new
-                        suggestion.deleteTokenRange(sym, nextTok.prev)leading(true)trailing(false)
-                    }
-                    suggestions.push(suggestion)
-                    errormessages.syntaxError("a method request must have an expression or a ')' after a '('.")atPosition(
-                        sym.line, sym.linePos)withSuggestions(suggestions)
-                }
-            }
-            while {accept("comma")} do {
-                nxt := values.pop
-                part.args.push(nxt)
-                next
-                if(didConsume({expression(blocksOK)}).not) then {
-                    def suggestions = [ ]
-                    var suggestion := errormessages.suggestion.new
-                    def nextTok = findNextValidToken( ["rparen"] )
-                    if(nextTok == sym) then {
-                        suggestion.insert(" «expression»")afterToken(lastToken)
-                    } else {
-                        suggestion.replaceTokenRange(sym, nextTok.prev)leading(true)trailing(false)with(" «expression»")
-                    }
-                    suggestions.push(suggestion)
-                    suggestion := errormessages.suggestion.new
-                    suggestion.deleteTokenRange(lastToken, nextTok.prev)leading(true)trailing(false)
-                    suggestions.push(suggestion)
-                    errormessages.syntaxError("a method request must have an expression after a ','.")atPosition(
-                        sym.line, sym.linePos)withSuggestions(suggestions)
-                }
-            }
-        }
-        if (!isEmpty) then {
-            nxt := values.pop
-            part.args.push(nxt)
-        }
-        if (isTerm.not) then {
-            if(sym.kind != "rparen") then {
-                checkBadOperators
-                def suggestion = errormessages.suggestion.new
-                suggestion.insert(")")afterToken(lastToken)
-                errormessages.syntaxError("a part of a multi-part method request beginning with a '(' must end with a ')'.")atPosition(
-                    lastToken.line, lastToken.linePos + lastToken.size)withSuggestion(suggestion)
-            }
-        }
-        if (accept("rparen") && isTerm.not) then {
-            next
-        }
-    }
-    def meth' = ast.identifierNode.new(methname, false)
-    meth'.line := meth.line
-    meth'.linePos := meth.linePos
-    meth'
-}
-
 // Accept a const declaration
 method defdec {
     if (acceptKeyword "def") then {
+        def startIndent = minIndentLevel
         def line = sym.line
         def pos = sym.linePos
         def defTok = sym
@@ -2149,12 +2030,15 @@ method defdec {
         o.startToken := defTok
         values.push(o)
         reconcileComments
+        minIndentLevel := startIndent
+        util.log 70 verbose "end of def on line {defTok.line}, minIndent = {minIndentLevel}, sym = {sym}"
     }
 }
 
 // Accept a var declaration
 method vardec {
     if (acceptKeyword "var") then {
+        def startIndent = minIndentLevel
         def line = sym.line
         def pos = sym.linePos
         def varTok = sym
@@ -2218,6 +2102,7 @@ method vardec {
         if (false != anns) then { o.annotations.addAll(anns) }
         values.push(o)
         reconcileComments
+        minIndentLevel := startIndent
     }
 }
 
@@ -2319,11 +2204,13 @@ method inheritsOrUses {
         }
         util.setPosition(btok.line, btok.linePos)
         def inhNode = ast.inheritsNode.new(values.pop)
+        util.log 65 verbose "parsing inherits, found expression {inhNode.value}"
         if (btok.value == "use") then {
             inhNode.isUse := true
         }
         while { inheritsModifier(inhNode) onLineOf(btok) } do { }
         values.push(inhNode)
+        util.log 65 verbose "parsed {btok.value} on line {btok.line}; result is\n{inhNode.pretty 4}"
     }
 }
 
@@ -3335,7 +3222,7 @@ method checkUnexpectedTokenAfterStatement {
                 suggestion.deleteTokenRange(sym, nextTok.prev)leading(true)trailing(false)
                 suggestions.push(suggestion)
             }
-            errormessages.syntaxError("multiple statements must be separated by a newline or a semicolon. This is often caused by missing parentheses.")atPosition(
+            errormessages.syntaxError("foundArgs or a semicolon. This is often caused by missing parentheses.")atPosition(
                 sym.line, sym.linePos)withSuggestions(suggestions)
         }
     }
