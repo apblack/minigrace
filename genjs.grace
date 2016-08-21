@@ -467,6 +467,9 @@ method compileInheritingObjectParameter {
 method compileTypeParameters(o) atPosition(sz) {
     if (false == o.typeParams) then { return }
     out "// Start type parameters"
+    o.typeParams.do { g->
+        out "  var {varf(g.value)} = var_Unknown;"
+    }
     out "if (argcv.length == {1 + sz}) \{"
     if (emitArgChecks) then {
         out "  if (argcv[{sz}] !== {o.typeParams.size}) \{"
@@ -475,11 +478,7 @@ method compileTypeParameters(o) atPosition(sz) {
         out "  \}"
     }
     o.typeParams.do { g ->
-        out "  var {varf(g.value)} = arguments[curarg++];"
-    }
-    out "\} else \{"
-    o.typeParams.do { g->
-        out "  var {varf(g.value)} = var_Unknown;"
+        out "  {varf(g.value)} = arguments[curarg++];"
     }
     out "\}"
     out "// End type parameters"
