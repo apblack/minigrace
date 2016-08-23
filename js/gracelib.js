@@ -3751,6 +3751,7 @@ if (typeof global !== "undefined") {
     global.NoSuchMethodErrorObject = NoSuchMethodErrorObject;
     global.PrimitiveGraceList = PrimitiveGraceList;
     global.ProgrammingErrorObject = ProgrammingErrorObject;
+    global.raiseTypeError = raiseTypeError;
     global.ResourceExceptionObject = ResourceExceptionObject;
     global.ReturnException = ReturnException;
     global.RuntimeErrorObject = RuntimeErrorObject;
