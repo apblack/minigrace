@@ -180,9 +180,10 @@ method compileobjdefdec(o, selfr) {
             if (o.dtype.value != "Unknown") then {
                 noteLineNumber(o.line)comment("typecheck in compileobjdefdec")
                 def nm_t = compilenode(o.dtype)
+                def typeDesc = o.dtype.toGrace 0.quoted
                 out "if (!Grace_isTrue(callmethod({nm_t}, \"match(1)\", [1], {val})))"
                 out "    raiseTypeError("
-                out "      \"value of def '{nm}' is not of type {o.dtype.toGrace(0)}\","
+                out "      \"value of def '{nm}' is not of type {typeDesc}\","
                 out "      {nm_t}, {val});"
             }
         }
@@ -201,9 +202,10 @@ method compileobjvardec(o, selfr) {
                 }
                 noteLineNumber(o.line)comment("typecheck in compileobjvardec")
                 def nm_t = compilenode(o.dtype)
+                def typeDesc = o.dtype.toGrace 0.quoted
                 out "if (!Grace_isTrue(callmethod({nm_t}, \"match(1)\", [1], {val})))"
                 out "    raiseTypeError("
-                out "      \"value of def '{nm}' is not of type {o.dtype.toGrace(0)}\","
+                out "      \"value of def '{nm}' is not of type {typeDesc}\","
                 out "      {nm_t}, {val});"
             }
         }
@@ -513,11 +515,12 @@ method compileArgumentTypeChecks(o) {
                 if (emitTypeChecks && (p.dtype != false)) then {
                     noteLineNumber(o.line)comment("argument check in compilemethod")
                     def dtype = compilenode(p.dtype)
+                    def typeDesc = p.dtype.toGrace 0.quoted
                     out("if (!Grace_isTrue(callmethod({dtype}, \"match(1)\"," ++
                         "  [1], arguments[curarg])))")
                     out "    raiseTypeError("
                     out "      \"argument {paramnr} to {part.name} (arg list {partnr}), which corresponds to parameter {p.value}, is not of type \" +"
-                    out "      \"{p.dtype.toGrace 0}\", {dtype}, arguments[curarg]);"
+                    out "      \"{typeDesc}\", {dtype}, arguments[curarg]);"
                 }
                 out("curarg++;")
             }
@@ -581,11 +584,12 @@ method compileFreshMethodBody(o) {
 method compileResultTypeCheck(o, ret) onLine (lineNr) {
     if (emitTypeChecks && (false ≠ o.dtype)) then {
         def dtype = compilenode(o.dtype)
+        def typeDesc = o.dtype.toGrace 0.quoted
         noteLineNumber (lineNr) comment "return value"
         out "if (!Grace_isTrue(callmethod({dtype}, \"match(1)\", [1], {ret})))"
         out "    raiseTypeError("
         out "        \"result of method {o.canonicalName} does not have type\" + "
-        out "        \"{o.dtype.toGrace 0}.\", {dtype}, {ret});"
+        out "        \"{typeDesc}.\", {dtype}, {ret});"
     }
 }
 
@@ -785,9 +789,10 @@ method compiledefdec(o) {
             if (o.dtype.value != "Unknown") then {
                 noteLineNumber(o.line)comment("type check for defdec")
                 def nm_t = compilenode(o.dtype)
+                def typeDesc = o.dtype.toGrace 0.quoted
                 out "if (!Grace_isTrue(callmethod({nm_t}, \"match(1)\", [1], {var_nm})))"
                 out "    raiseTypeError("
-                out "      \"value of def '{nm}' is not of type {o.dtype.toGrace(0)}\","
+                out "      \"value of def '{nm}' is not of type {typeDesc}\","
                 out "      {nm_t}, {var_nm});"
             }
         }
@@ -829,9 +834,10 @@ method compilevardec(o) {
                 if (val != "false") then {
                     noteLineNumber(o.line)comment("type check for vardec")
                     def nm_t = compilenode(o.dtype)
+                    def typeDesc = o.dtype.toGrace 0.quoted
                     out "if (!Grace_isTrue(callmethod({nm_t}, \"match(1)\", [1], {var_nm})))"
                     out "    raiseTypeError("
-                    out "      \"initial value of var '{nm}' is not of type {o.dtype.toGrace(0)}\","
+                    out "      \"initial value of var '{nm}' is not of type {typeDesc}\","
                     out "      {nm_t}, {var_nm});"
                 }
             }
@@ -1043,9 +1049,10 @@ method compileimport(o) {
         if (o.dtype != false) then {
             if (o.dtype.value != "Unknown") then {
                 def nm_t = compilenode(o.dtype)
+                def typeDesc = o.dtype.toGrace 0.quoted
                 out "if (!Grace_isTrue(callmethod({nm_t}, \"match(1)\", [1], {var_nm})))"
                 out "    raiseTypeError("
-                out "          \"module '{o.nameString.quoted}' is not of type {o.dtype.toGrace(0)}\","
+                out "          \"module '{o.nameString.quoted}' is not of type {typeDesc}\","
                 out "          {nm_t}, {var_nm});"
             }
         }
