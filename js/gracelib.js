@@ -2937,7 +2937,8 @@ GraceMirror.prototype = {
                 }
                 current = current.superobj;
             }
-            var exceptionMsg = new GraceString("no method " + name + " in mirror for ");
+            var exceptionMsg = new GraceString("no method " +
+                  canonicalMethodName(name) + " in mirror for ");
             var objDescription = callmethod(this.subject, "asString", [0]);
             exceptionMsg = callmethod(exceptionMsg, "++", [1], objDescription);
             throw new GraceExceptionPacket(NoSuchMethodErrorObject, exceptionMsg);
@@ -3183,7 +3184,7 @@ function raiseConfidentialMethod(name, target) {
 function raiseUninitializedVariable(name, target) {
     throw new GraceExceptionPacket(UninitializedVariableObject,
            new GraceString("uninitialised variable used as argument to '" +
-                           name + "' of " + describe(target) + "."));
+                           canonicalMethodName(name) + "' of " + describe(target) + "."));
 }
 
 function describe(obj) {
@@ -3669,7 +3670,7 @@ function graceModuleName(fileName) {
 }
 
 function escapeident(id) {
-        // must correspond to escapeident(_) in genjs.grace
+    // must correspond to escapeident(_) in genjs.grace
     var nm = "";
     for (var ix = 0; ix < id.length; ix++) {
         var o = id.charCodeAt(ix);
