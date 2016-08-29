@@ -225,7 +225,7 @@ method create (kind) field (o) in (objr) {
     out "if (! {objr}.methods.{nmi}) \{"
     increaseindent
     out "var reader_{nmi}{myc} = function() \{  // reader method"
-    out "    return this.data[\"{nm}\"];"
+    out "    return this.data.{nmi};"
     out "};"
     out "reader_{nmi}{myc}.{kind} = true;"
     if (o.isReadable.not) then {
