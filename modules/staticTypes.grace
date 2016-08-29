@@ -4,17 +4,17 @@ dialect "dialect"
 
 import "ast" as ast
 import "util" as util
+import "standardGraceClass" as sgc
 
-inherit prelude.methods
+inherit sgc.standardGrace
 
-// Type error.
+type List⟦T⟧ = prelude.List⟦T⟧
 
 def TypeError is public = CheckerFailure.refine "TypeError"
 
-// Method signature information consisting of the name, list of MixParts,
-// return type and info on what types it specializes.
-
 type MethodType = {
+    // Method signature information consisting of the name, list of MixParts,
+    // return type and info on what types it specializes.
     name -> String
     signature -> List⟦MixPart⟧
     returnType -> ObjectType
@@ -104,12 +104,12 @@ def aMethodType = object {
                 return false
             }
 
-            for (signature) and (other.signature) do { part, part' ->
+            prelude.for (signature) and (other.signature) do { part, part' ->
                 if (part.name != part'.name) then {
                     return false
                 }
 
-                for (part.parameters) and (part'.parameters) do { p, p' ->
+                prelude.for (part.parameters) and (part'.parameters) do { p, p' ->
                     def pt = p.typeAnnotation
                     def pt' = p'.typeAnnotation
 
@@ -171,7 +171,7 @@ def aMethodType = object {
 
 // Object type information.
 
-def noSuchMethod = Singleton.named "noSuchMethod"
+def noSuchMethod = prelude.Singleton.named "noSuchMethod"
 
 type ObjectType = {
     // return list of methods
@@ -361,7 +361,7 @@ def objectType = object {
                 return if (false ≠ lit.value) then {
                     object {
 //                        inherit oType & fromDType (intersection.last)
-                        inherit TypeIntersection.new (oType, fromDType (intersection.last))
+                        inherit prelude.TypeIntersection.new (oType, fromDType (intersection.last))
 
                         method asString is override { lit.value }
                     }
@@ -381,7 +381,7 @@ def objectType = object {
                 return if (false ≠ lit.value) then {
                     object {
 //                        inherit oType | fromDType (union.last)
-                        inherit TypeUnion.new (oType, fromDType (union.last))
+                        inherit prelude.TypeUnion.new (oType, fromDType (union.last))
                         def asString: String is public, override = lit.value
                     }
                 } else {
@@ -467,7 +467,7 @@ def objectType = object {
     }
 
     method addTo (oType: ObjectType) name (name': String)
-            params (ptypes: Iterable⟦ObjectType⟧) returns (rType: ObjectType)
+            params (ptypes: prelude.Iterable⟦ObjectType⟧) returns (rType: ObjectType)
             -> Done is confidential {
         def parameters = []
         for (ptypes) do { ptype ->
@@ -681,7 +681,7 @@ method check (req: Request)
         against (meth: MethodType) -> ObjectType is confidential {
     def name = meth.name
 
-    for (meth.signature) and (req.with) do { part, args' ->
+    prelude.for (meth.signature) and (req.with) do { part, args' ->
         def params = part.parameters
         def args   = args'.args
 
@@ -703,7 +703,7 @@ method check (req: Request)
                     with (where)
         }
 
-        for (params) and (args) do { param, arg ->
+        prelude.for (params) and (args) do { param, arg ->
             def pType = param.typeAnnotation
             def aType = typeOf (arg)
 
@@ -1196,7 +1196,7 @@ method collectTypes (nodes: List) -> Done is confidential {
         } case { _ -> }
     }
 
-    for (types) and (placeholders) do { td, ph ->
+    prelude.for (types) and (placeholders) do { td, ph ->
         def oType = objectType.fromDType (td)
         prelude.become (ph, oType)
     }
