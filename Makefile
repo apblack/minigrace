@@ -386,10 +386,10 @@ $(OBJECTDRAW:%.grace=modules/%.gcn): modules/%.gcn:
 $(OBJECTDRAW:%.grace=modules/%.gct): modules/%.gct: js/%.gct
 	cd modules && ln -sf ../$< .
 
-$(OBJECTDRAW:%.grace=js/%.js): js/%.js: modules/%.grace js/dom.gct minigrace js/timer.gct
+$(OBJECTDRAW:%.grace=js/%.js): js/%.js: modules/%.grace js/dom.gct minigrace js/timer.gct js/standardGraceClass.gct
 	GRACE_MODULE_PATH=js:modules ./minigrace --target js --dir js --make $(VERBOSITY) $<
 
-$(OBJECTDRAW:%.grace=js/%.gct): js/%.gct: modules/%.grace js/dom.gct minigrace js/timer.gct
+$(OBJECTDRAW:%.grace=js/%.gct): js/%.gct: modules/%.grace js/dom.gct minigrace js/timer.gct js/standardGraceClass.gct
 	GRACE_MODULE_PATH=js:modules ./minigrace --target js --dir js --make $(VERBOSITY) $<
 
 $(OBJECTDRAW_REAL:%.grace=modules/%.grace): modules/%.grace: pull-objectdraw
