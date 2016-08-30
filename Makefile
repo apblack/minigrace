@@ -356,6 +356,8 @@ $(MGSOURCEFILES:%.grace=%.gso): %.gso: %.grace standardGrace.gct l1/minigrace
 $(MGSOURCEFILES:%.grace=js/%.js): js/%.js: %.grace js/standardGrace.gct minigrace
 	GRACE_MODULE_PATH=modules ./minigrace $(VERBOSITY) --make --target js --dir js $<
 
+$(MGSOURCEFILES:%.grace=js/%.gct): js/%.gct: js/%.js
+
 $(C_MODULES_GSO:modules/%.gso=%.gso): %.gso: modules/%.gso
 	ln -sf $< .
 
