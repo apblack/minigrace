@@ -887,8 +887,6 @@ GraceBoolean.prototype = {
         "isMe(1)":          object_isMe,
         "≠(1)":             object_notEquals,
         "basicAsString":    object_basicAsString,
-        "asString":         object_asString,
-        "asDebugString":    object_asDebugString,
         "debugValue":       object_debugValue,
         "debugIterator":    object_debugIterator,
         "::(1)":            object_colonColon
