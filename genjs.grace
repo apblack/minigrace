@@ -493,9 +493,10 @@ method compileTypeParameters(o) atPosition(sz) {
     }
     out "if (argcv.length == {1 + sz}) \{"
     if (emitArgChecks) then {
-        out "  if (argcv[{sz}] !== {o.typeParams.size}) \{"
-        out "    throw new GraceExceptionPacket(ProgrammingErrorObject, "
-        out "        new GraceString(\"wrong number of type arguments for {o.canonicalName}\"));"
+        def ntp = o.typeParams.size
+        out "  if (argcv[{sz}] !== {ntp}) \{"
+        out "    throw new GraceExceptionPacket(RequestErrorObject, "
+        out "        new GraceString(\"method {o.canonicalName} expects {ntp} type parameters, but was given \" ++ argcv[{sz}]));"
         out "  \}"
     }
     o.typeParams.do { g ->
