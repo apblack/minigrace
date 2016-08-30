@@ -1485,10 +1485,10 @@ method transformCall(cNode) -> ast.AstNode {
         cNode.onSelf
     } elseif { nominalRcvr.isOuter && (cNode.nameString == "outer") } then {
         // deal with outer.outer ..., which has been parsed into a memberNode
-        // The reciever shoudl alrady have been converted from an identifier to
+        // The reciever should alrady have been converted from an identifier to
         // and outerNode; here we add another object to that node's object list.
         def priorOuter = nominalRcvr.theObjects.last
-        def newOuter = priorOuter.parent.enclosingObjectScope.node
+        def newOuter = priorOuter.scope.parent.enclosingObjectScope.node
         nominalRcvr.theObjects.addLast(newOuter)
         cNode
     } else {
