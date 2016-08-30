@@ -233,7 +233,7 @@ method create (kind) field (o) in (objr) {
     }
     out "{objr}.methods[\"{nm}\"] = reader_{nmi}{myc};"
     decreaseindent
-    out "};"
+    out "}"
     if (kind == "var") then {
         out "if (! {objr}.methods[\"{nmi}:=(1)\"]) \{"
         increaseindent
@@ -246,7 +246,7 @@ method create (kind) field (o) in (objr) {
         }
         out "{objr}.methods[\"{nm}:=(1)\"] = writer_{nmi}{myc};"
         decreaseindent
-        out "};"
+        out "}"
     }
 }
 
@@ -494,9 +494,10 @@ method compileTypeParameters(o) atPosition(sz) {
     out "if (argcv.length == {1 + sz}) \{"
     if (emitArgChecks) then {
         def ntp = o.typeParams.size
+        def s = if (ntp == 1) then { "" } else { "s" }
         out "  if (argcv[{sz}] !== {ntp}) \{"
         out "    throw new GraceExceptionPacket(RequestErrorObject, "
-        out "        new GraceString(\"method {o.canonicalName} expects {ntp} type parameters, but was given \" ++ argcv[{sz}]));"
+        out "        new GraceString(\"method {o.canonicalName} expects {ntp} type parameter{s}, but was given \" + argcv[{sz}]));"
         out "  \}"
     }
     o.typeParams.do { g ->
@@ -669,7 +670,7 @@ method compilefreshmethod(o, selfobj) {
     compileMethodPostamble(o, myc, o.canonicalName ++ "$object(_)")
     compileMetadata(o, myc, name, selfobj)
     decreaseindent
-    out "\};"
+    out "\}"
 }
 method compilemethodtypes(func, o) {
     out("{func}.paramTypes = [];")
