@@ -3727,6 +3727,7 @@ var var_done = GraceDone;
 
 // for node: explicitly make names global
 if (typeof global !== "undefined") {
+    global.Alias = Alias;
     global.callmethod = callmethod;
     global.callmethodChecked = callmethodChecked;
     global.callmethodsuper = callmethodsuper;
