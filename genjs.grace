@@ -1509,7 +1509,7 @@ method addSuffix (tail) to (root) {
 method aliasList(inhNode) {
     var res := "["
     inhNode.aliases.do { a ->
-        res := res ++ "new Alias(\"{a.newName.quoted}\", \"{a.newName.quoted}\")"
+        res := res ++ "new Alias(\"{a.newName.quoted}\", \"{a.oldName.quoted}\")"
     } separatedBy {
         res := res ++ ", "
     }
