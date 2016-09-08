@@ -1665,7 +1665,7 @@ GraceType.prototype = {
                 if (!other.methods[m]) {
                     var tmp = other;
                     var found = false;
-                    while (tmp.superobj !== null) {
+                    while (tmp.superobj) {
                         tmp = tmp.superobj;
                         if (tmp.methods[m]) {
                             found = true;
@@ -1856,7 +1856,7 @@ function GraceBlock_match(argcv, o) {
 function classType(obj) {
     var t = new GraceType(capitalize(obj.className));
     var o = obj;
-    while (o !== null) {
+    while (o) {
         for (var m in o.methods) {
             if (! o.methods[m].confidential) {
                 t.typeMethods.push(m);
@@ -2875,12 +2875,13 @@ GraceMirrorMethod.prototype.methods['requestWithArgs(1)'] = function(argcv, argL
     }
     var theFunction = this.obj.methods[this.name];
     var paramcv = theFunction.paramCounts;
-    var requiredLen = paramcv.sum();
+    var np = theFunction.paramNames.length;
+    var ntp = theFunction.typeParamNames.length;
     var providedLen = callmethod(argList, "size", [0])._value;
-    if (providedLen !== requiredLen) {
+    if ((providedLen !== np) && (providedLen != (np + ntp))) {
         throw new GraceExceptionPacket(ProgrammingErrorObject,
                 new GraceString("method '" + this.name + "' requires " +
-                requiredLen + " arguments, but was given " + providedLen + "."));
+                np + " arguments, but was given " + providedLen + "."));
     }
     var allArgs = [this.obj, this.name, paramcv];
     var argsIter = callmethod(argList, "iterator", [0]);
@@ -2910,8 +2911,11 @@ GraceMirror.prototype = {
             var meths = [];
             var current = this.subject;
             while (current) {
-                for (var k in current.methods)
-                    meths.push(new GraceMirrorMethod(current, k));
+                for (var k in current.methods) {
+                    if (! k.includes("$") && current.methods.hasOwnProperty(k)) {
+                        meths.push(new GraceMirrorMethod(current, k));
+                    }
+                }
                 current = current.superobj;
             }
             var l = new GraceList(meths);
@@ -2922,7 +2926,7 @@ GraceMirror.prototype = {
             var current = this.subject;
             while (current) {
                 for (var k in current.methods) {
-                    if (! k.includes("$")) {
+                    if (! k.includes("$") && current.methods.hasOwnProperty(k)) {
                         callmethod(meths, "add(1)", [1],
                               new GraceString(canonicalMethodName(k)));
                     }
