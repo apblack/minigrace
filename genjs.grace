@@ -18,7 +18,6 @@ var usedvars := []
 var declaredvars := []
 var bblock := "entry"
 
-var values := []
 var outfile
 var modname := "main"
 var runmode := "build"
@@ -683,7 +682,7 @@ method compilemethod(o, selfobj) {
         out "return {compilenode(o.body.first)};  // simple accessor"
     } else {
         debugModePrefix
-        out "return {compileMethodBodyWithTypecheck(o)};"
+            out "return {compileMethodBodyWithTypecheck(o)};"
         debugModeSuffix
     }
     compileMethodPostamble(o, funcName, canonicalMethName)
@@ -753,7 +752,7 @@ method compileNullInitMethod(methNode) {
 }
 
 method paramlist(o) {
-    // a comma-prefixed and separated list of the parameters of
+    // a comma-prefixed and separated list of the parameters
     // described by methodnode o.
     var result := ""
     o.signature.do { part ->
@@ -1319,7 +1318,6 @@ method compile(moduleObject, of, rm, bt, glPath) {
         emitPositions := false
         requestCall := "callmethod"
     }
-    values := moduleObject.value
     outfile := of
     modname := moduleObject.name
     emod := escapeident(modname)
@@ -1346,7 +1344,8 @@ method compile(moduleObject, of, rm, bt, glPath) {
         out "var___95__prelude = do_import(\"standardGrace\", gracecode_standardGrace);"
     }
     util.setline(1)
-    out("function {formatModname(modname)}() \{")
+    def generatedModuleName = formatModname(modname)
+    out "function {generatedModuleName}() \{"
     increaseindent
     out("setModuleName(\"{modname}\");")
     out "importedModules[\"{modname}\"] = this;"
@@ -1382,14 +1381,18 @@ method compile(moduleObject, of, rm, bt, glPath) {
             compilenode(o)
             imported.push(o.path)
         }
-        if (false != moduleObject.superclass) then {
-            compilenode(moduleObject.superclass)
+        def inheritsStmt = moduleObject.superclass
+        if (false != inheritsStmt) then {
+            compileInherit(inheritsStmt) forClass (modname)
         }
         moduleObject.usedTraits.do { t -> 
             compileUse(t) in (moduleObject)
         }
         moduleObject.methodsDo { o ->
             compilenode(o)
+        }
+        if (false != inheritsStmt) then {
+            compileSuperInitialization(inheritsStmt.value)
         }
     }
     moduleObject.executableComponentsDo { o ->
@@ -1405,8 +1408,7 @@ method compile(moduleObject, of, rm, bt, glPath) {
     out("return this;")
     decreaseindent
     out("\}")
-    
-    def generatedModuleName = formatModname(modname)
+
     def importList = imported.map{ each -> "'{each}'" }.asList.sort
     out "{generatedModuleName}.imports = {importList};"
     
