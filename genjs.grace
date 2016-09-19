@@ -302,6 +302,7 @@ method compileBuildAndInitFunctions(o) inMethod (methNode) {
 
     if (o.register.isEmpty.not) then {
         ProgrammingError.raise "already set selfr in compileBuildAndInitFunctions"
+        // TODO: delete this test.
     }
     def selfr = uidWithPrefix "obj"
     o.register := selfr
@@ -1374,7 +1375,7 @@ method compile(moduleObject, of, rm, bt, glPath) {
                 imported.push(o.path)
             }
         }
-        moduleObject.value.do { o ->
+        moduleObject.value.do { o ->    // this treats importNodes as executable
             if (o.isMethod.not) then {
                 compilenode(o)
             }
@@ -1397,10 +1398,10 @@ method compile(moduleObject, of, rm, bt, glPath) {
         if (false != inheritsStmt) then {
             compileSuperInitialization(inheritsStmt.value)
         }
-    }
         moduleObject.executableComponentsDo { o ->
             compilenode(o)
         }
+    }
     if (xmodule.currentDialect.hasAtEnd) then {
         out "var var_thisDialect = callmethod(var_prelude, \"thisDialect\", [0]);"
         out("callmethod(var_thisDialect, \"atEnd(1)\", [1], this);")
