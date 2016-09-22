@@ -57,6 +57,8 @@ method checkDialect(moduleObject) {
     def dialectNode = moduleObject.theDialect
     def dmn = dialectNode.moduleName
     currentDialect.name := dmn
+    util.log 50 verbose "checking dialect {dmn} used by module {moduleObject.name}"
+    if (dmn == "none") then { return }
     checkExternalModule(dialectNode)
     def dialectGct = parseGCT(dialectNode.value)
     if ((dialectGct.at "public" ifAbsent {emptySequence}).contains "thisDialect") then {
