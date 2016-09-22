@@ -1800,7 +1800,6 @@ function checkBlockApply(numargs) {
                 plural + " but given " + nArgs + "."));
     }
     var match;
-    superDepth = this.receiver;
     if (this.pattern) {
         match = callmethod(this.pattern, "match(1)", [1], args[0]);
         if ( ! Grace_isTrue(match)) {
@@ -2567,8 +2566,6 @@ function gracecode_util() {
     };
     var obj_requiredModules = Grace_allocObject(GraceObject, "requiredModules");
     var obj_init_requiredModules = function () {
-        var origSuperDepth = superDepth;
-        superDepth = obj_requiredModules;
         var meth_isAlready = function(argcv) {    // method isAlready(1)
             var var_moduleName = arguments[1];
             setModuleName("util");
@@ -2604,7 +2601,6 @@ function gracecode_util() {
         };
         reader_util_other1263.def = true;
         obj_requiredModules.methods['other'] = reader_util_other1263;
-        superDepth = origSuperDepth;
     };
     obj_init_requiredModules.apply(obj_requiredModules, []);
     var var_requiredModules = obj_requiredModules;
@@ -2987,14 +2983,6 @@ if (typeof gctCache !== "undefined")
 
 var overrideReceiver = null;
 
-function callmethodsuper(obj, methname, argcv) {
-    overrideReceiver = obj;
-    var args = Array.prototype.slice.call(arguments, 1);
-    args.splice(0, 0, superDepth.superobj);
-    onSelf = true;
-    return callmethod.apply(null, args);
-}
-
 function safeJsString (obj) {
     // Don't use callmethod!  This function is called from within callmethod.
     var objString;
@@ -3032,8 +3020,6 @@ function GraceCallStackToString() {
 
 function callmethod(obj, methname, argcv) {
     var meth = obj.methods[methname];
-    var origSuperDepth = superDepth;
-    superDepth = obj;
     var origModuleName = moduleName;
     var origLineNumber = lineNumber;
     var returnTarget = invocationCount;  // will be incremented by invoked method
@@ -3043,7 +3029,6 @@ function callmethod(obj, methname, argcv) {
             s = s.superobj;
             meth = s.methods[methname];
             if (typeof(meth) === "function") {
-                superDepth = s;
                 break;
             }
         }
@@ -3081,7 +3066,6 @@ function callmethod(obj, methname, argcv) {
         }
         throw e;
     } finally {
-        superDepth = origSuperDepth;
         setModuleName(origModuleName);
         setLineNumber(origLineNumber);
     }
@@ -3093,8 +3077,6 @@ function callmethodChecked(obj, methname, argcv) {
         throw new GraceExceptionPacket(UninitializedVariableObject,
                 new GraceString("requested method '" + methname + "' on uninitialised variable."));
     var meth = obj.methods[methname];
-    var origSuperDepth = superDepth;
-    superDepth = obj;
     var origModuleName = moduleName;
     var origLineNumber = lineNumber;
     var returnTarget = invocationCount;  // will be incremented by invoked method
@@ -3104,7 +3086,6 @@ function callmethodChecked(obj, methname, argcv) {
             s = s.superobj;
             meth = s.methods[methname];
             if (typeof(meth) === "function") {
-                superDepth = s;
                 break;
             }
         }
@@ -3143,7 +3124,6 @@ function callmethodChecked(obj, methname, argcv) {
         }
         throw e;
     } finally {
-        superDepth = origSuperDepth;
         setModuleName(origModuleName);
         setLineNumber(origLineNumber);
     }
@@ -3416,17 +3396,16 @@ function do_import(modname, moduleCodeFunc) {
     if (moduleCodeFunc === undefined)
         throw new GraceExceptionPacket(ImportErrorObject,
             new GraceString("could not find code for module '" + modname + "'"));
-    var origSuperDepth = superDepth;
-    superDepth = (modname === "standardGrace") ? Grace_prelude : new GraceModule(modname);
-    // importing "standardGrace" adds to the built-in prelude.
+    var modUnderConstruction =
+        (modname === "standardGrace") ? Grace_prelude : new GraceModule(modname);
+          // importing "standardGrace" adds to the built-in prelude.
     try {
-        var f = Function.prototype.call.call(moduleCodeFunc, superDepth);
-          // Almost like moduleCodeFunc.call(superDepth), which executes
-          // moduleCodeFunc with this === superDepth.  The difference is that we
-          // ensure that the `call` function is the one from Function.prototype
+        var f = Function.prototype.call.call(moduleCodeFunc, modUnderConstruction);
+          // Almost like moduleCodeFunc.call(modUnderConstruction), which executes
+          // moduleCodeFunc with this === modUnderConstruction.  The difference is
+          // that the `call` function is the one from Function.prototype
         return f;
     } finally {
-        superDepth = origSuperDepth;
         importedModules[modname] = f;
     }
 }
@@ -3743,7 +3722,6 @@ if (typeof global !== "undefined") {
     global.Alias = Alias;
     global.callmethod = callmethod;
     global.callmethodChecked = callmethodChecked;
-    global.callmethodsuper = callmethodsuper;
     global.classType = classType;
     global.dbg = dbg;
     global.dbgp = dbgp;
@@ -3809,7 +3787,6 @@ if (typeof global !== "undefined") {
     global.setLineNumber = setLineNumber;
     global.setModuleName = setModuleName;
     global.StackFrame = StackFrame;
-    global.superDepth = "never initialized";
     global.tryCatch = tryCatch;
     global.type_Boolean = type_Boolean;
     global.type_Block = type_Block;

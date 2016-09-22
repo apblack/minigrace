@@ -7,8 +7,6 @@ var fs = require("fs");
 var util = require('util');
 
 global.minigrace = {};
-global.sourceObject = null;
-global.superDepth = {methods:{}, data: {}, className: process.argv[1]};
 global.invocationCount = 0;
 global.onOuter = false;
 global.onSelf = false;
