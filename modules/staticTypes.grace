@@ -10,7 +10,7 @@ inherit sgc.standardGrace
 
 type List⟦T⟧ = prelude.List⟦T⟧
 
-def ProgrammingError = outer.outer.ProgrammingError
+def ProgrammingError = prelude.ProgrammingError
 def TypeError is public = CheckerFailure.refine "TypeError"
 
 type MethodType = {
@@ -66,30 +66,31 @@ def aMethodType = object {
         var name: String is readable:= ""
         var show: String:= ""
 
-        def fst = signature.at (1)
+        def fst = signature.at 1
 
         if (fst.parameters.size == 0) then {
-            name:= fst.name
-            show:= name
+            name := fst.name
+            show := name
         } else {
-            for (signature) do { part ->
-                name:= "{name}{part.name}()"
+            signature.do { part ->
+                name:= "{name}{part.name}("
                 show:= "{show}{part.name}("
                 var once:= false
-                for (part.parameters) do { param ->
+                part.parameters.do { param ->
                     if (once) then {
-                        show:= "{show}, "
+                        show := show ++ ", "
+                        name := name ++ ","
                     }
-                    show:= "{show}{param}"
+                    show := show ++ param
+                    name := name ++ "_"
                     once:= true
                 }
-                show:= "{show})"
+                show := show ++ ")"
+                name := name ++ ")"
             }
-
-            name:= name.substringFrom (1) to (name.size - 2)
         }
 
-        show:= "{show} -> {returnType}"
+        show := "{show} -> {returnType}"
 
         // Determines if this method is a specialisation of the given one.
         method isSpecialisationOf (other: MethodType) -> Boolean {
@@ -139,10 +140,10 @@ def aMethodType = object {
         match (node) case { meth: Method | Class | MethodSignature ->
             def signature = []
 
-            for (meth.signature) do { part ->
+            meth.signature.do { part ->
                 def params = []
 
-                for (part.params) do { param ->
+                part.params.do { param ->
                     params.push (aParam.withName (param.value)
                         ofType (objectType.fromDType (param.dtype)))
                 }
@@ -197,7 +198,7 @@ def objectType = object {
             then { [] } else { base.methods } ++ methods'
 
         method getMethod (name: String) -> MethodType | noSuchMethod {
-            for (methods) do { meth ->
+            methods.do { meth ->
                 if (meth.name == name) then {
                     return meth
                 }
@@ -228,7 +229,7 @@ def objectType = object {
             currentlyTesting.push (other)
 
             for (other.methods) doWithContinue { a, continue ->
-                for (methods) do { b ->
+                methods.do { b ->
                     if (b.isSpecialisationOf (a)) then {
                         continue.apply
                     }
@@ -249,7 +250,7 @@ def objectType = object {
             def combine = []
 
             for (methods) doWithContinue { meth, continue ->
-                for (other.methods) do { meth'->
+                other.methods.do { meth'->
                     if (meth.name == meth'.name) then {
                         if (meth.isSpecialisationOf (meth')) then {
                             combine.push (meth)
@@ -283,7 +284,7 @@ def objectType = object {
             def twice = []
 
             for (methods) doWithContinue { meth, continue ->
-                for (other.methods) do { meth' ->
+                other.methods.do { meth' ->
                     if (meth.name == meth'.name) then {
                         if (meth.isSpecialisationOf (meth')) then {
                             combine.push (meth)
@@ -303,7 +304,7 @@ def objectType = object {
                 combine.push (meth)
             }
 
-            for (other.methods) do { meth ->
+            other.methods.do { meth ->
                 if (twice.contains (meth.name).not) then {
                     combine.push (meth)
                 }
@@ -326,7 +327,7 @@ def objectType = object {
 
             var out:= "\{ "
 
-            for (methods) do { mtype ->
+            methods.do { mtype ->
                 if (["!=", "≠", "asString", "asDebugString", "::"].contains (mtype.name).not) then {
                     out:= "{out}{mtype}; "
                 }
@@ -392,7 +393,7 @@ def objectType = object {
 
             def meths = []
 
-            for (lit.methods) do { mType ->
+            lit.methods.do { mType ->
                 meths.push (aMethodType.fromNode (mType))
             }
 
@@ -471,7 +472,7 @@ def objectType = object {
             params (ptypes: prelude.Iterable⟦ObjectType⟧) returns (rType: ObjectType)
             -> Done is confidential {
         def parameters = []
-        for (ptypes) do { ptype ->
+        ptypes.do { ptype ->
             parameters.push (aParam.ofType (ptype))
         }
 
@@ -482,7 +483,7 @@ def objectType = object {
 
     method extend (this: ObjectType) with (that: ObjectType)
             -> Done is confidential {
-        for (that.methods) do { mType ->
+        that.methods.do { mType ->
             this.methods.push (mType)
         }
     }
@@ -503,16 +504,19 @@ def objectType = object {
     addTo (binding) name "key" returns (base)
     addTo (binding) name "value" returns (base)
 
-    addTo (base) name "≠" params [base] returns (boolean)
+    addTo (base) name "≠(_)" params [base] returns (boolean)
     addTo (base) name "asDebugString" returns (string)
     addTo (base) name "asString" returns (string)
-    addTo (base) name "::" returns (binding)
+    addTo (base) name "::(_)" returns (binding)
     addTo (base) name "emptyList" returns (list)
 
+    addTo (done) name "asDebugString" returns (string)
+    addTo (done) name "asString" returns (string)
+
     extend (pattern) with (base)
-    addTo (pattern) name "match" params [base] returns (unknown)
-    addTo (pattern) name "|" params [pattern] returns (pattern)
-    addTo (pattern) name "&" params [pattern] returns (pattern)
+    addTo (pattern) name "match(_)" params [base] returns (unknown)
+    addTo (pattern) name "|(_)" params [pattern] returns (pattern)
+    addTo (pattern) name "&(_)" params [pattern] returns (pattern)
 
     extend (iterator) with (base)
     addTo (iterator) name "hasNext" returns (boolean)
@@ -521,49 +525,49 @@ def objectType = object {
     def shortCircuit = blockTaking ([aParam.ofType (blockReturning (unknown))])
         returning (base)
     extend (boolean) with (base)
-    addTo (boolean) name "&&" params [boolean] returns (boolean)
-    addTo (boolean) name "||" params [boolean] returns (boolean)
+    addTo (boolean) name "&&(_)" params [boolean] returns (boolean)
+    addTo (boolean) name "||(_)" params [boolean] returns (boolean)
     addTo (boolean) name "prefix!" returns (boolean)
     addTo (boolean) name "not" returns (boolean)
 
     extend (number) with (base)
-    addTo (number) name "+" params [number] returns (number)
-    addTo (number) name "*" params [number] returns (number)
-    addTo (number) name "-" params [number] returns (number)
-    addTo (number) name "/" params [number] returns (number)
-    addTo (number) name "^" params [number] returns (number)
-    addTo (number) name "%" params [number] returns (number)
-    addTo (number) name "÷" params [number] returns (number)
-    addTo (number) name "@" params [number] returns (point)
-    addTo (number) name "hash" returns (string)
-    addTo (number) name "++" params [base] returns (string)
-    addTo (number) name "<" params [number] returns (boolean)
-    addTo (number) name ">" params [number] returns (boolean)
-    addTo (number) name "≤" params [number] returns (boolean)
-    addTo (number) name "≥" params [number] returns (boolean)
-    addTo (number) name ".." params [number] returns (list)
+    addTo (number) name "+(_)" params [number] returns (number)
+    addTo (number) name "*(_)" params [number] returns (number)
+    addTo (number) name "-(_)" params [number] returns (number)
+    addTo (number) name "/(_)" params [number] returns (number)
+    addTo (number) name "^(_)" params [number] returns (number)
+    addTo (number) name "%(_)" params [number] returns (number)
+    addTo (number) name "÷(_)" params [number] returns (number)
+    addTo (number) name "@(_)" params [number] returns (point)
+    addTo (number) name "hash" returns (number)
+    addTo (number) name "++(_)" params [base] returns (string)
+    addTo (number) name "<(_)" params [number] returns (boolean)
+    addTo (number) name ">(_)" params [number] returns (boolean)
+    addTo (number) name "≤(_)" params [number] returns (boolean)
+    addTo (number) name "≥(_)" params [number] returns (boolean)
+    addTo (number) name "..(_)" params [number] returns (list)
     addTo (number) name "asInteger32" returns (number)
     addTo (number) name "prefix-" returns (number)
-    addTo (number) name "inBase" params [number] returns (number)
+    addTo (number) name "inBase(_)" params [number] returns (number)
     addTo (number) name "truncated" returns (number)
     addTo (number) name "rounded" returns (number)
-    addTo (number) name "prefix⟦" returns (pattern)
-    addTo (number) name "prefix⟧" returns (pattern)
+    addTo (number) name "prefix<" returns (pattern)
+    addTo (number) name "prefix>" returns (pattern)
 
     extend (point) with (base)
     addTo (point) name "x" returns (number)
     addTo (point) name "y" returns (number)
 
     extend (string) with (base)
-    addTo (string) name "++" params [base] returns (string)
-    addTo (string) name "at" params [number] returns (string)
+    addTo (string) name "++(_)" params [base] returns (string)
+    addTo (string) name "at(_)" params [number] returns (string)
     addTo (string) name "iterator" returns (base)
     addTo (string) name "quoted" returns (string)
     addTo (string) name "size" returns (number)
     addTo (string) name "iterator" returns (iterator)
     addTo (string) name "ord" returns (number)
-    addTo (string) name "substringFrom()to" params [number, number] returns (string)
-    addTo (string) name "replace()with" params [string, string] returns (string)
+    addTo (string) name "substringFrom(_)to(_)" params [number, number] returns (string)
+    addTo (string) name "replace()with(_)" params [string, string] returns (string)
     addTo (string) name "hash" returns (string)
     addTo (string) name "indices" returns (list)
     addTo (string) name "asNumber" returns (number)
@@ -571,21 +575,21 @@ def objectType = object {
     def fold = blockTaking ([aParam.ofType (unknown), aParam.ofType (unknown)])
         returning (unknown)
     extend (list) with (base)
-    addTo (list) name "at" params [number] returns (unknown)
-    addTo (list) name "at ()put" params [number, unknown] returns (done)
-    addTo (list) name "push" params [unknown] returns (done)
+    addTo (list) name "at(_)" params [number] returns (unknown)
+    addTo (list) name "at(_)put(_)" params [number, unknown] returns (done)
+    addTo (list) name "push(_)" params [unknown] returns (done)
     addTo (list) name "pop" returns (unknown)
     addTo (list) name "size" returns (number)
     addTo (list) name "iterator" returns (iterator)
-    addTo (list) name "contains" params [unknown] returns (boolean)
+    addTo (list) name "contains(_)" params [unknown] returns (boolean)
     addTo (list) name "indices" returns (list)
     addTo (list) name "first" returns (unknown)
     addTo (list) name "last" returns (unknown)
-    addTo (list) name "add" params [unknown] returns (list)
-    addTo (list) name "addFirst" params [unknown] returns (list)
-    addTo (list) name "addAll" params [unknown] returns (list)
-    addTo (list) name "++" params [list] returns (list)
-    addTo (list) name "fold()startingWith" params [fold, unknown] returns (unknown)
+    addTo (list) name "add(_)" params [unknown] returns (list)
+    addTo (list) name "addFirst(_)" params [unknown] returns (list)
+    addTo (list) name "addAll(_)" params [unknown] returns (list)
+    addTo (list) name "++(_)" params [list] returns (list)
+    addTo (list) name "fold(_)startingWith(_)" params [fold, unknown] returns (unknown)
 
     scope.types.at "Unknown" put (unknown)
     scope.types.at "Done" put (done)
@@ -675,7 +679,7 @@ rule { req: Request ->
         }
     } case { ident: Identifier ->
         find (req) atScope (scope.methods.stack.size)
-    } case { _ -> }
+    }
 }
 
 method check (req: Request)
@@ -727,11 +731,11 @@ method find (req: Request) atScope (i: Number) -> ObjectType is confidential {
 
     def sType = objectType.fromMethods (scope.methods.stack.at (i).values)
 
-    return match (sType.getMethod (req.value.value)) case { (noSuchMethod) ->
+    return match (sType.getMethod (req.receiver.value)) case { (noSuchMethod) ->
         find (req) atScope (i - 1)
     } case { meth: MethodType ->
         check (req) against (meth)
-    } case { _ -> }
+    }
 }
 
 rule { memb: Member ->
@@ -772,7 +776,7 @@ rule { op: Operator ->
             }
 
             meth.returnType
-        } case { _ -> }
+        }
     }
 }
 
@@ -797,7 +801,7 @@ rule { req: MatchCase ->
     def cases = req.cases
     var union := done
 
-    for (cases) do { case ->
+    cases.do { case ->
         def cType = objectType.fromBlock (case)
         union := if (done == union) then {
             cType
@@ -814,9 +818,9 @@ rule { req: TryCatch ->
         if (params.size > 0) then {
             RequestError.raise "too many parameters for try block" with (bl)
         }
-    } case { _ -> }
+    }
 
-    for (req.cases) do { eachCase ->
+    req.cases.do { eachCase ->
         match (eachCase) case { bl: BlockLiteral ->
             def params = bl.params
             if (params.size != 1) then {
@@ -825,7 +829,7 @@ rule { req: TryCatch ->
 
                 RequestError.raise "{which} parameters for catch block" with (bl)
             }
-        } case { _ -> }
+        }
     }
 
     if (false ≠ req.finally) then {
@@ -834,7 +838,7 @@ rule { req: TryCatch ->
             if (params.size > 0) then {
                 RequestError.raise "too many parameters to finally" with (bl)
             }
-        } case { _ -> }
+        }
     }
 
     objectType.done
@@ -851,8 +855,8 @@ rule { meth: Method ->
     def returnType = mType.returnType
 
     scope.enter {
-        for (meth.signature) do { part ->
-            for (part.params) do { param ->
+        meth.signature.do { part ->
+            part.params.do { param ->
                 scope.variables.at (param.value)
                     put (objectType.fromDType (param.dtype))
             }
@@ -860,7 +864,7 @@ rule { meth: Method ->
 
         collectTypes (meth.body)
 
-        for (meth.body) do { stmt ->
+        meth.body.do { stmt ->
             checkTypes (stmt)
 
             stmt.accept (object {
@@ -900,6 +904,7 @@ rule { meth: Method ->
     }
 
     scope.methods.at (name) put (mType)
+    objectType.done
 }
 
 method check (node) matches (eType: ObjectType)
@@ -921,8 +926,8 @@ rule { cls: Class ->
     def name = cls.name.value
     def dType = objectType.fromDType (cls.dtype)
     def cType = scope.enter {
-        for (cls.signature) do { part ->
-            for (part.params) do { param ->
+        cls.signature.do { part ->
+            part.params.do { param ->
                 scope.variables.at (param.value)
                     put (objectType.fromDType (param.dtype))
             }
@@ -980,7 +985,7 @@ rule { defd: Def | Var ->
     def name = defd.name.value
     scope.variables.at (name) put (defType)
 
-    for (defd.annotations) do { ann ->
+    defd.annotations.do { ann ->
         if (ann.value == "public") then {
             scope.methods.at (name) put (aMethodType.member (name) ofType (defType))
 
@@ -996,6 +1001,7 @@ rule { defd: Def | Var ->
             return
         }
     }
+    objectType.done
 }
 
 rule { bind: Bind ->
@@ -1010,6 +1016,7 @@ rule { bind: Bind ->
             "`{vType}` does not satisfy the type `{dType}` of " ++
             "`{dest.toGrace 0}`") with (value)
     }
+    objectType.done
 }
 
 
@@ -1017,6 +1024,7 @@ rule { bind: Bind ->
 
 rule { imp: Import ->
     scope.variables.at (imp.nameString) put (objectType.unknown)
+    objectType.done
 }
 
 
@@ -1026,20 +1034,20 @@ rule { block: BlockLiteral ->
     def body = block.body
 
     scope.enter {
-        for (block.params) do { param ->
+        block.params.do { param ->
             scope.variables.at (param.value)
                 put (objectType.fromDType (param.dtype))
         }
 
         collectTypes (body)
 
-        for (body) do { stmt ->
+        body.do { stmt ->
             checkTypes (stmt)
         }
     }
 
     def parameters = []
-    for (block.params) do { param ->
+    block.params.do { param ->
         parameters.push (aParam.withName (param.value)
             ofType (objectType.fromDType (param.dtype)))
     }
@@ -1128,7 +1136,7 @@ method processBody (body: List) -> ObjectType is confidential {
         def publicMethods = []
         def allMethods = []
 
-        for (body) do { stmt ->
+        body.do { stmt ->
             match (stmt) case { meth: Method ->
                 def mType = aMethodType.fromNode (meth)
                 allMethods.push (mType)
@@ -1162,7 +1170,7 @@ method processBody (body: List) -> ObjectType is confidential {
         body.indices
     }
 
-    for (indices) do { i ->
+    indices.do { i ->
         checkTypes (body.at (i))
     }
 
@@ -1179,7 +1187,7 @@ method collectTypes (nodes: List) -> Done is confidential {
     def types = []
     def placeholders = []
 
-    for (nodes) do { node ->
+    nodes.do { node ->
         match (node) case { td: TypeDeclaration ->
             if (names.contains (td.nameString)) then {
                 TypeDeclarationError.raise ("the type {td.nameString} uses " ++
@@ -1207,7 +1215,7 @@ method collectTypes (nodes: List) -> Done is confidential {
 // Determines if a node is publicly available.
 method isPublic (node: Method | Def | Var) -> Boolean is confidential {
     match (node) case { _: Method ->
-        for (node.annotations) do { ann ->
+        node.annotations.do { ann ->
             if (ann.value == "confidential") then {
                 return false
             }
@@ -1215,7 +1223,7 @@ method isPublic (node: Method | Def | Var) -> Boolean is confidential {
 
         true
     } case { _ ->
-        for (node.annotations) do { ann ->
+        node.annotations.do { ann ->
             if ((ann.value == "public") || (ann.value == "readable")) then {
                 return true
             }
@@ -1239,7 +1247,7 @@ method isMember (mType: MethodType) -> Boolean is confidential {
 
 // For loop with break.
 method for (a) doWithBreak (bl) -> Done {
-    for (a) do { e ->
+    a.do { e ->
         bl.apply (e, {
             return
         })
@@ -1248,7 +1256,7 @@ method for (a) doWithBreak (bl) -> Done {
 
 // For loop with continue.
 method for (a) doWithContinue (bl) -> Done {
-    for (a) do { e ->
+    a.do { e ->
         continue'(e, bl)
     }
 }
@@ -1260,7 +1268,6 @@ method continue'(e, bl) -> Done is confidential {
 }
 
 def thisDialect is public = object {
-    method parseChecker (moduleObj) { check (moduleObj) }
     method astChecker (moduleObj) { check (moduleObj) }
     method atStart { print "module start" }
     method atEnd { print "module end" }
