@@ -3534,6 +3534,8 @@ var UninitializedVariableObject = new GraceException("UninitializedVariable", Pr
 // when it is loaded.
 //
 
+function nullFunction() {}
+
 function traitObjectFromInto(obj, that, aliases, exclusions) {
     setModuleName("built-in");
     if (obj.hasOwnProperty('_value')) {
@@ -3550,7 +3552,7 @@ function traitObjectFromInto(obj, that, aliases, exclusions) {
         var exMeth = exclusions[eix];
         delete that.methods[exMeth];
     }
-    return that;
+    return nullFunction;
 }
 
 var Grace_prelude = new GraceModule("standardGrace");
@@ -3563,8 +3565,6 @@ Grace_prelude.methods['false$build(3)'] =
     function prelude_false$build (argcv, inheritingObject, aliases, exclusions) {
         return traitObjectFromInto(GraceFalse, inheritingObject, aliases, exclusions);
     };
-Grace_prelude.methods['true$init(1)'] = function () { };
-Grace_prelude.methods['false$init(1)'] = function () { };
 Grace_prelude.methods['Exception'] = function(argcv) {
     return ExceptionObject;
 };
@@ -3829,6 +3829,7 @@ if (typeof global !== "undefined") {
     global.loadDate = loadDate;
     global.matchCase = matchCase;
     global.NoSuchMethodErrorObject = NoSuchMethodErrorObject;
+    global.nullFunction = nullFunction;
     global.PrimitiveGraceList = PrimitiveGraceList;
     global.ProgrammingErrorObject = ProgrammingErrorObject;
     global.raiseTypeError = raiseTypeError;
