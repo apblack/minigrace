@@ -1714,6 +1714,7 @@ method compile(moduleObject, outfile, rm, bt, buildinfo) {
     outF("#include <stdlib.h>")
     outF("#include <math.h>")
     outF("#include <float.h>")
+    outF("#include <stdio.h>")
     if (!util.extensions.contains("NoMain")) then {
         outF "#ifndef __CYGWIN__"
         outF "#pragma weak main"
@@ -1830,6 +1831,10 @@ method compile(moduleObject, outfile, rm, bt, buildinfo) {
     out("  Object *selfslot = &(stackframe->slots[0]);")
     out("  *selfslot = self;")
     out("  setframeelementname(stackframe, 0, \"self\");")
+    if (sys.environ.contains "GRACE_DEBUG_INIT") then {
+        out "  if (getenv(\"GRACE_DEBUG_INIT\") != NULL)"
+        out "      fprintf(stderr, \"executed module_{escmodname}_init() = %p\\n\", self);"
+    }
     out("// end of preamble")
     var tmpo := output
     output := []

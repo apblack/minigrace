@@ -5877,6 +5877,8 @@ Object dlmodule(const char *name) {
     if (!find_gso(name, buf)) {
         gracedie("failed to find dynamic module '%s.gso'.\nHave you set the environment variable GRACE_MODULE_PATH?", name);
     }
+    if (getenv("GRACE_DEBUG_INIT") != NULL)
+        fprintf(stderr, "about to load dl %s ... ", buf);
     void *handle = dlopen(buf, RTLD_LAZY | RTLD_GLOBAL);
     if (!handle)
         gracedie("failed to load dynamic module '%s': %s", buf, dlerror());
@@ -5887,6 +5889,8 @@ Object dlmodule(const char *name) {
     if (!init)
         gracedie("failed to find initialiser %s in dynamic module '%s'", buf, name);
     Object mod = init();
+    if (getenv("GRACE_DEBUG_INIT") != NULL)
+        fprintf(stderr, "initialized dl module %s = %p\n", name, mod);
     gc_root(mod);
     return mod;
 }
