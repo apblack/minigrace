@@ -2037,6 +2037,7 @@ var stdout = Grace_allocObject(GraceObject, "stdout");
 stdout.methods["write(1)"] = function(argcv, s) {
     minigrace.stdout_write(s._value);
 };
+stdout.methods.pathname = function() { return new GraceString(""); };
 stdout.methods.isatty = function() {
         if(typeof(process) !== "undefined") {
             return Boolean(process.stdout.isTTY) ? GraceTrue : GraceFalse;
@@ -2066,6 +2067,7 @@ stdin.methods.isatty = function() {
             return GraceFalse;
         }
 };
+stdin.methods.pathname = function() { return new GraceString(""); };
 stdin.methods.close = function() {};
 stdin.methods['==(1)'] = function (argcv, other) {
     return (this===other) ? GraceTrue : GraceFalse;
@@ -2084,6 +2086,7 @@ stderr.methods.isatty = function() {
         return GraceFalse;
     }
 };
+stderr.methods.pathname = function() { return new GraceString(""); };
 stderr.methods.close = function() {};
 stderr.methods['==(1)'] = function (argcv, other) {
     return (this===other) ? GraceTrue : GraceFalse;
